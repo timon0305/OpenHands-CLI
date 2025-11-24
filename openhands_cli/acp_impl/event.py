@@ -97,8 +97,6 @@ def _event_visualize_to_plain(event: Event) -> str:
     """
     text = event.visualize
     text = text.plain
-    # Double newlines for ACP formatting
-    text = text.replace("\n", "\n\n")
     return str(text)
 
 
