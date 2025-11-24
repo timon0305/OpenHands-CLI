@@ -72,6 +72,8 @@ class OpenHandsACPAgent(ACPAgent):
         # Cache of active conversations to preserve state (pause, confirmation, etc.)
         # across multiple operations on the same session
         self._active_sessions: dict[str, BaseConversation] = {}
+        # Track running tasks for each session to ensure proper cleanup on cancel
+        self._running_tasks: dict[str, asyncio.Task] = {}
 
         logger.info("OpenHands ACP Agent initialized")
 
@@ -299,7 +301,14 @@ class OpenHandsACPAgent(ACPAgent):
 
             # Run the conversation asynchronously
             # Callbacks are already set up when conversation was created
-            await asyncio.to_thread(conversation.run)
+            # Track the running task so cancel() can wait for proper cleanup
+            run_task = asyncio.create_task(asyncio.to_thread(conversation.run))
+            self._running_tasks[session_id] = run_task
+            try:
+                await run_task
+            finally:
+                # Clean up task tracking
+                self._running_tasks.pop(session_id, None)
 
             # Return the final response
             return PromptResponse(stopReason="end_turn")
@@ -332,6 +341,33 @@ class OpenHandsACPAgent(ACPAgent):
             conversation = self._get_or_create_conversation(session_id=params.sessionId)
             # Pause the conversation (state is preserved in cache)
             conversation.pause()
+
+            # Wait for the running task to actually terminate
+            # This ensures we're faithful about the conversation status
+            running_task = self._running_tasks.get(params.sessionId)
+            if running_task and not running_task.done():
+                logger.debug(
+                    f"Waiting for conversation thread to terminate for session "
+                    f"{params.sessionId}"
+                )
+                try:
+                    # Wait for the task to complete with a timeout
+                    # The pause() signal should cause it to stop soon
+                    await asyncio.wait_for(running_task, timeout=10.0)
+                except TimeoutError:
+                    logger.warning(
+                        f"Conversation thread did not stop within timeout for session "
+                        f"{params.sessionId}"
+                    )
+                    # Cancel the task if it doesn't stop in time
+                    running_task.cancel()
+                    try:
+                        await running_task
+                    except asyncio.CancelledError:
+                        pass
+                except Exception as e:
+                    logger.warning(f"Error while waiting for conversation to stop: {e}")
+
         except RequestError:
             # Re-raise RequestError as-is
             raise
