@@ -183,6 +183,7 @@ class OpenHandsACPAgent(ACPAgent):
             persistence_dir=CONVERSATIONS_DIR,
             conversation_id=UUID(session_id),
             callbacks=[sync_callback],
+            visualizer=None,  # No visualizer needed for ACP
         )
 
         # # Set up security analyzer (same as setup_conversation with confirmation mode)
