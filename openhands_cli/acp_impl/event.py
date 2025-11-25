@@ -1,6 +1,6 @@
 """Utility functions for ACP implementation."""
 
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
 from acp import SessionNotification
 from acp.schema import (
@@ -50,16 +50,12 @@ from openhands.tools.file_editor.definition import (
 from openhands.tools.task_tracker.definition import (
     TaskTrackerAction,
     TaskTrackerObservation,
+    TaskTrackerStatusType,
 )
 from openhands.tools.terminal.definition import ExecuteBashAction
 
 
 logger = get_logger(__name__)
-
-# Type alias matching task tracker status types from openhands-tools
-# TODO: Import from openhands.tools.task_tracker once SDK PR is merged
-# https://github.com/OpenHands/software-agent-sdk/pull/1263
-TaskTrackerStatusType = Literal["todo", "in_progress", "done"]
 
 
 def extract_action_locations(action: Action) -> list[ToolCallLocation] | None:
