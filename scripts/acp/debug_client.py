@@ -6,10 +6,7 @@ This tool allows you to interactively send JSON-RPC messages to the ACP server
 and see the responses. Useful for debugging ACP protocol issues.
 
 Usage:
-    python -m openhands_cli.acp_impl.debug_client
-
-    Or with uv:
-    uv run python -m openhands_cli.acp_impl.debug_client
+    uv run python scripts/acp/debug_client.py
 
 Commands:
     init              - Send initialize request

@@ -5,7 +5,7 @@ for Agent Client Protocol (ACP).
 Sends JSON-RPC messages to the child process stdin and prints responses
 from stdout and stderr.
 
-uv run python scripts/jsonrpc_cli.py ./dist/openhands acp
+uv run python scripts/acp/jsonrpc_cli.py ./dist/openhands acp
 """
 
 import argparse
