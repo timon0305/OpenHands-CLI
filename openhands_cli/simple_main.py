@@ -13,6 +13,7 @@ from prompt_toolkit.formatted_text import HTML
 
 from openhands_cli.argparsers.main_parser import create_main_parser
 from openhands_cli.user_actions.types import ConfirmationMode
+from openhands_cli.utils import create_seeded_instructions_from_args
 
 
 debug_env = os.getenv("DEBUG", "false").lower()
@@ -49,9 +50,13 @@ def main() -> None:
             elif args.llm_approve:
                 confirmation_mode = "llm-approve"
 
+            queued_inputs = create_seeded_instructions_from_args(args)
+
             # Start agent chat
             run_cli_entry(
-                resume_conversation_id=args.resume, confirmation_mode=confirmation_mode
+                resume_conversation_id=args.resume,
+                confirmation_mode=confirmation_mode,
+                queued_inputs=queued_inputs,
             )
     except KeyboardInterrupt:
         print_formatted_text(HTML("\n<yellow>Goodbye! 👋</yellow>"))

@@ -63,6 +63,7 @@ def _print_exit_hint(conversation_id: str) -> None:
 def run_cli_entry(
     resume_conversation_id: str | None = None,
     confirmation_mode: ConfirmationMode | None = None,
+    queued_inputs: list[str] | None = None,
 ) -> None:
     """Run the agent chat session using the agent SDK.
 
@@ -70,12 +71,16 @@ def run_cli_entry(
         resume_conversation_id: ID of conversation to resume
         confirmation_mode: Confirmation mode to use.
             Options: None, "always-approve", "llm-approve"
+        queued_inputs: Optional list of input strings to queue at the start
 
     Raises:
         AgentSetupError: If agent setup fails
         KeyboardInterrupt: If user interrupts the session
         EOFError: If EOF is encountered
     """
+
+    # Normalize queued_inputs to a local copy to prevent mutating the caller's list
+    pending_inputs = list(queued_inputs) if queued_inputs else []
 
     conversation_id = uuid.uuid4()
     if resume_conversation_id:
@@ -122,10 +127,13 @@ def run_cli_entry(
     while True:
         try:
             # Get user input
-            user_input = session.prompt(
-                HTML("<gold>> </gold>"),
-                multiline=False,
-            )
+            if pending_inputs:
+                user_input = pending_inputs.pop(0)
+            else:
+                user_input = session.prompt(
+                    HTML("<gold>> </gold>"),
+                    multiline=False,
+                )
 
             if not user_input.strip():
                 continue
