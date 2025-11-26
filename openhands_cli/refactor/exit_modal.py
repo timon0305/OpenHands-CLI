@@ -22,7 +22,7 @@ class ExitConfirmationModal(ModalScreen):
         width: 25vw;
         height: 5vw;
         border: $primary 80%;
-        background: $surface;
+        background: $surface 90%;
         margin: 1 1;
     }
 
@@ -35,6 +35,15 @@ class ExitConfirmationModal(ModalScreen):
 
     Button {
         width: 100%;
+        margin: 0 1;
+    }
+
+    #yes {
+        content-align: center middle;
+    }
+
+    #no {
+        content-align: center middle;
     }
     """
 
