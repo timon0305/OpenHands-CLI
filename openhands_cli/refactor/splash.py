@@ -29,6 +29,7 @@ def get_welcome_message(conversation_id: str | None = None, *, theme: Theme) -> 
     # Use theme colors
     primary_color = theme.primary
     accent_color = theme.accent
+    background_color = theme.background
 
     # Generate UUID if no conversation_id provided
     if conversation_id is None:
@@ -45,18 +46,18 @@ def get_welcome_message(conversation_id: str | None = None, *, theme: Theme) -> 
     # Version line
     message_parts.append(f"OpenHands CLI v{version_info.current_version}")
 
-    # Create console for rendering panels
+    # Create console for rendering panels with app background
     console = Console(width=80, legacy_windows=False)
 
     # Status panel
-    status_panel = Panel("All set up!", width=15)
+    status_panel = Panel("All set up!", width=15, style=f"on {background_color}")
     with console.capture() as capture:
         console.print(status_panel)
     message_parts.extend(["", capture.get(), ""])
 
     # Conversation ID panel (always show now)
     conv_text = f"[{accent_color}]Initialized conversation[/] {conversation_id}"
-    conv_panel = Panel(conv_text)
+    conv_panel = Panel(conv_text, style=f"on {background_color}")
     with console.capture() as capture:
         console.print(conv_panel)
     message_parts.extend([capture.get(), ""])
