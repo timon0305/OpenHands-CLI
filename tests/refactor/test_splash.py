@@ -1,0 +1,179 @@
+"""Tests for splash screen and welcome message functionality."""
+
+import unittest.mock as mock
+
+import pytest
+
+from openhands_cli.refactor.splash import get_openhands_banner, get_welcome_message
+from openhands_cli.version_check import VersionInfo
+
+
+class TestGetOpenHandsBanner:
+    """Tests for get_openhands_banner function."""
+
+    def test_banner_contains_openhands_text(self):
+        """Test that banner contains OpenHands ASCII art."""
+        banner = get_openhands_banner()
+        
+        # Check that it's a string
+        assert isinstance(banner, str)
+        
+        # Check that it contains key elements of the ASCII art
+        assert "___" in banner
+        assert "OpenHands" in banner or "_ __" in banner  # ASCII art representation
+        assert "\n" in banner  # Multi-line
+        
+    def test_banner_is_consistent(self):
+        """Test that banner returns the same content on multiple calls."""
+        banner1 = get_openhands_banner()
+        banner2 = get_openhands_banner()
+        assert banner1 == banner2
+
+
+class TestGetWelcomeMessage:
+    """Tests for get_welcome_message function."""
+
+    def test_welcome_message_without_conversation_id(self):
+        """Test welcome message generation without conversation ID."""
+        with mock.patch("openhands_cli.refactor.splash.check_for_updates") as mock_check:
+            mock_check.return_value = VersionInfo(
+                current_version="1.0.0",
+                latest_version="1.0.0",
+                needs_update=False,
+                error=None
+            )
+            
+            message = get_welcome_message()
+            
+            # Check basic structure
+            assert isinstance(message, str)
+            assert "Welcome to OpenHands CLI!" in message
+            assert "Version: 1.0.0" in message
+            assert "Let's start building!" in message
+            assert "Press any key to continue..." in message
+            
+            # Should not contain conversation ID
+            assert "Initialized conversation" not in message
+
+    def test_welcome_message_with_conversation_id(self):
+        """Test welcome message generation with conversation ID."""
+        with mock.patch("openhands_cli.refactor.splash.check_for_updates") as mock_check:
+            mock_check.return_value = VersionInfo(
+                current_version="1.0.0",
+                latest_version="1.0.0",
+                needs_update=False,
+                error=None
+            )
+            
+            conversation_id = "test-conversation-123"
+            message = get_welcome_message(conversation_id)
+            
+            # Check conversation ID is included
+            assert f"Initialized conversation {conversation_id}" in message
+            
+            # Should not contain generic welcome
+            assert "Welcome to OpenHands CLI!" not in message
+
+    def test_welcome_message_with_update_available(self):
+        """Test welcome message when update is available."""
+        with mock.patch("openhands_cli.refactor.splash.check_for_updates") as mock_check:
+            mock_check.return_value = VersionInfo(
+                current_version="1.0.0",
+                latest_version="1.1.0",
+                needs_update=True,
+                error=None
+            )
+            
+            message = get_welcome_message()
+            
+            # Check update notification is included
+            assert "Version: 1.0.0" in message
+            assert "⚠ Update available: 1.1.0" in message
+            assert "Run 'uv tool upgrade openhands' to update" in message
+
+    def test_welcome_message_no_update_needed(self):
+        """Test welcome message when no update is needed."""
+        with mock.patch("openhands_cli.refactor.splash.check_for_updates") as mock_check:
+            mock_check.return_value = VersionInfo(
+                current_version="1.0.0",
+                latest_version="1.0.0",
+                needs_update=False,
+                error=None
+            )
+            
+            message = get_welcome_message()
+            
+            # Check no update notification
+            assert "Version: 1.0.0" in message
+            assert "⚠ Update available" not in message
+            assert "Run 'uv tool upgrade openhands' to update" not in message
+
+    @pytest.mark.parametrize("conversation_id", [
+        None,
+        "simple-id",
+        "complex-conversation-id-with-dashes",
+        "123-numeric-id",
+        ""
+    ])
+    def test_welcome_message_various_conversation_ids(self, conversation_id):
+        """Test welcome message with various conversation ID formats."""
+        with mock.patch("openhands_cli.refactor.splash.check_for_updates") as mock_check:
+            mock_check.return_value = VersionInfo(
+                current_version="1.0.0",
+                latest_version="1.0.0",
+                needs_update=False,
+                error=None
+            )
+            
+            message = get_welcome_message(conversation_id)
+            
+            # Basic structure should always be present
+            assert "Let's start building!" in message
+            assert "Press any key to continue..." in message
+            assert "Version: 1.0.0" in message
+            
+            # Check conversation ID handling
+            if conversation_id:
+                assert f"Initialized conversation {conversation_id}" in message
+                assert "Welcome to OpenHands CLI!" not in message
+            else:
+                assert "Welcome to OpenHands CLI!" in message
+                assert "Initialized conversation" not in message
+
+    def test_welcome_message_includes_banner(self):
+        """Test that welcome message includes the OpenHands banner."""
+        with mock.patch("openhands_cli.refactor.splash.check_for_updates") as mock_check:
+            mock_check.return_value = VersionInfo(
+                current_version="1.0.0",
+                latest_version="1.0.0",
+                needs_update=False,
+                error=None
+            )
+            
+            message = get_welcome_message()
+            banner = get_openhands_banner()
+            
+            # Banner should be included in the message
+            assert banner in message
+
+    def test_welcome_message_structure(self):
+        """Test the overall structure of the welcome message."""
+        with mock.patch("openhands_cli.refactor.splash.check_for_updates") as mock_check:
+            mock_check.return_value = VersionInfo(
+                current_version="1.0.0",
+                latest_version="1.0.0",
+                needs_update=False,
+                error=None
+            )
+            
+            message = get_welcome_message()
+            lines = message.split('\n')
+            
+            # Should have multiple lines
+            assert len(lines) > 5
+            
+            # Should contain empty lines for spacing
+            assert '' in lines
+            
+            # Should end with the continue prompt
+            assert lines[-1] == "Press any key to continue..."
