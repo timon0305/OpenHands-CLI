@@ -77,7 +77,8 @@ def get_welcome_message(conversation_id: str | None = None, *, theme: Theme) -> 
         message_parts.extend(
             [
                 "",
-                f"⚠ Update available: {version_info.latest_version}",
+                f"[{primary_color}]⚠ Update available: "
+                f"{version_info.latest_version}[/]",
                 "Run 'uv tool upgrade openhands' to update",
             ]
         )
