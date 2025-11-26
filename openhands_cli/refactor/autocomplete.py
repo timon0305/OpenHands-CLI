@@ -65,13 +65,13 @@ class EnhancedAutoComplete(AutoComplete):
         """Get candidates based on the current input context."""
         # Text up to the cursor
         raw = target_state.text[: target_state.cursor_position]
-        raw = raw.lstrip()
 
-        if raw.startswith("/"):
-            # Command completion
-            return self._get_command_candidates(raw)
-        elif raw.startswith("@"):
-            # File path completion
+        # Check if we're at the start of the input for command completion
+        if raw.lstrip().startswith("/"):
+            # Command completion (only at start of input)
+            return self._get_command_candidates(raw.lstrip())
+        elif "@" in raw:
+            # File path completion (anywhere in the input)
             return self._get_file_candidates(raw)
         else:
             # No completion for other cases
@@ -87,8 +87,13 @@ class EnhancedAutoComplete(AutoComplete):
 
     def _get_file_candidates(self, raw: str) -> list[DropdownItem]:
         """Get file path candidates for @ paths."""
-        # Remove the @ prefix to get the path part
-        path_part = raw[1:]  # Remove @
+        # Find the last @ symbol in the text
+        at_index = raw.rfind("@")
+        if at_index == -1:
+            return []
+
+        # Extract the path part after the @
+        path_part = raw[at_index + 1 :]  # Remove @ and everything before it
 
         # If there's a space, stop completion
         if " " in path_part:
@@ -143,16 +148,21 @@ class EnhancedAutoComplete(AutoComplete):
     def get_search_string(self, target_state: TargetState) -> str:
         """Get the search string based on the input type."""
         raw = target_state.text[: target_state.cursor_position]
-        raw = raw.lstrip()
 
-        if raw.startswith("/"):
+        # Check if we're at the start of the input for command completion
+        if raw.lstrip().startswith("/"):
             # Command completion - only match if no spaces
-            if " " in raw:
+            stripped = raw.lstrip()
+            if " " in stripped:
                 return ""
-            return raw
-        elif raw.startswith("@"):
-            # File path completion - match the path part
-            path_part = raw[1:]
+            return stripped
+        elif "@" in raw:
+            # File path completion - match the path part after the last @
+            at_index = raw.rfind("@")
+            if at_index == -1:
+                return ""
+
+            path_part = raw[at_index + 1 :]
             if " " in path_part:
                 return ""
             # Return the filename part for matching
@@ -178,7 +188,11 @@ class EnhancedAutoComplete(AutoComplete):
                 command_only = value
             self.target.value = ""
             self.target.insert_text_at_cursor(command_only)
-        elif current_text.lstrip().startswith("@"):
-            # File path completion - replace the @ path
-            self.target.value = ""
-            self.target.insert_text_at_cursor(value)
+        elif "@" in current_text:
+            # File path completion - replace from the last @ to the end
+            at_index = current_text.rfind("@")
+            if at_index != -1:
+                # Keep everything before the @ and replace with the new value
+                prefix = current_text[:at_index]
+                self.target.value = ""
+                self.target.insert_text_at_cursor(prefix + value)

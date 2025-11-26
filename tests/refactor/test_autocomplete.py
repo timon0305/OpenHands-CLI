@@ -262,11 +262,16 @@ class TestEnhancedAutoComplete:
             ("/h", 2, "command"),
             ("/help", 5, "command"),
             ("/exit", 5, "command"),
-            # File path completion cases
+            # File path completion cases - @ at beginning
             ("@", 1, "file"),
             ("@R", 2, "file"),
             ("@README", 7, "file"),
             ("@openhands_cli/", 15, "file"),
+            # File path completion cases - @ anywhere in text
+            ("read @", 6, "file"),
+            ("cat @README", 11, "file"),
+            ("edit @src/main.py", 17, "file"),
+            ("open @openhands_cli/", 20, "file"),
             # No completion cases
             ("hello", 5, "none"),
             ("", 0, "none"),
@@ -304,7 +309,7 @@ class TestEnhancedAutoComplete:
             ("/h", 2, "/h"),
             ("/help", 5, "/help"),
             ("/help ", 6, ""),  # Space stops command completion
-            # File path search strings
+            # File path search strings - @ at beginning
             ("@", 1, ""),  # Empty filename part
             ("@R", 2, "R"),
             ("@README", 7, "README"),
@@ -312,6 +317,13 @@ class TestEnhancedAutoComplete:
             ("@openhands_cli/test", 19, "test"),
             ("@path/to/file.py", 16, "file.py"),
             ("@file ", 6, ""),  # Space stops file completion
+            # File path search strings - @ anywhere in text
+            ("read @", 6, ""),  # Empty filename part
+            ("read @R", 7, "R"),
+            ("cat @README", 11, "README"),
+            ("edit @src/main.py", 17, "main.py"),
+            ("open @openhands_cli/", 20, ""),  # Directory with trailing slash
+            ("view @file ", 11, ""),  # Space stops file completion
             # No completion cases
             ("hello", 5, ""),
             ("", 0, ""),
@@ -361,6 +373,23 @@ class TestEnhancedAutoComplete:
         # Should clear and insert full file path
         assert mock_input.value == ""
         mock_input.insert_text_at_cursor.assert_called_with("@README.md")
+
+    def test_enhanced_autocomplete_apply_completion_file_anywhere(self):
+        """Test apply_completion works for file paths anywhere in text."""
+        mock_input = mock.MagicMock(spec=Input)
+        mock_input.value = "read @READ"
+
+        autocomplete = EnhancedAutoComplete(mock_input, command_candidates=COMMANDS)
+
+        # Create a mock state
+        mock_state = TargetState(text="read @READ", cursor_position=10)
+
+        # Test file path completion
+        autocomplete.apply_completion("@README.md", mock_state)
+
+        # Should clear and insert prefix + file path
+        assert mock_input.value == ""
+        mock_input.insert_text_at_cursor.assert_called_with("read @README.md")
 
     def test_file_candidates_with_real_files(self):
         """Test that file candidates include real files from the working directory."""
