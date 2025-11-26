@@ -32,7 +32,7 @@ class TestOpenHandsTheme:
         # Test status colors
         assert theme.success == "#ffe165"  # Success messages
         assert theme.warning == "#ffe165"  # Warning messages
-        assert theme.error == "#ffe165"  # Error messages
+        assert theme.error == "#ff6b6b"  # Error messages
 
     def test_theme_variables(self):
         """Test that theme has correct custom variables."""

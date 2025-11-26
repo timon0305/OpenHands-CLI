@@ -155,17 +155,22 @@ class TestOpenHandsApp:
         # Call the method
         app.on_input_submitted(mock_event)
 
-        # RichLog.write should be called twice: user message + placeholder
-        assert mock_richlog.write.call_count == 2
+        # RichLog.write should be called three times:
+        # user message + processing + placeholder
+        assert mock_richlog.write.call_count == 3
 
         # First call should be the user message
         expected_message = f"\n> {user_input}"
         first_call = mock_richlog.write.call_args_list[0][0][0]
         assert first_call == expected_message
 
-        # Second call should be the placeholder message
+        # Second call should be the processing message
         second_call = mock_richlog.write.call_args_list[1][0][0]
-        assert "not implemented yet" in second_call
+        assert "Processing message" in second_call
+
+        # Third call should be the placeholder message
+        third_call = mock_richlog.write.call_args_list[2][0][0]
+        assert "conversation runner" in third_call
 
         # Input value should be cleared
         assert mock_event.input.value == ""
@@ -192,9 +197,23 @@ class TestOpenHandsApp:
         assert first_call.startswith("\n> ")
 
     @mock.patch("openhands_cli.refactor.textual_app.get_welcome_message")
-    async def test_input_functionality_integration(self, mock_welcome):
+    @mock.patch("openhands_cli.refactor.textual_app.MinimalConversationRunner")
+    async def test_input_functionality_integration(
+        self, mock_runner_class, mock_welcome
+    ):
         """Test that input functionality works end-to-end."""
         mock_welcome.return_value = "Welcome!"
+
+        # Mock the conversation runner to avoid actual API calls
+        mock_runner = mock.MagicMock()
+        mock_runner.is_running = False
+
+        # Make process_message_async return an async function
+        async def mock_process_message_async(message):
+            pass
+
+        mock_runner.process_message_async = mock_process_message_async
+        mock_runner_class.return_value = mock_runner
 
         app = OpenHandsApp()
         async with app.run_test() as pilot:

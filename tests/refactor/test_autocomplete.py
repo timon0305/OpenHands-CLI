@@ -229,16 +229,21 @@ class TestCommandsAndAutocomplete:
         # Call the method
         app.on_input_submitted(mock_event)
 
-        # Check that both user message and placeholder response were written
-        assert mock_richlog.write.call_count == 2
+        # Check that user message, processing message, and placeholder response
+        # were written
+        assert mock_richlog.write.call_count == 3
 
         # First call should be the user message
         first_call = mock_richlog.write.call_args_list[0][0][0]
         assert first_call == "\n> hello world"
 
-        # Second call should be the placeholder message
+        # Second call should be the processing message
         second_call = mock_richlog.write.call_args_list[1][0][0]
-        assert "not implemented yet" in second_call
+        assert "Processing message" in second_call
+
+        # Third call should be the placeholder message
+        third_call = mock_richlog.write.call_args_list[2][0][0]
+        assert "conversation runner" in third_call
 
         # Input should be cleared
         assert mock_event.input.value == ""

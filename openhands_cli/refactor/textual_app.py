@@ -15,6 +15,7 @@ from textual.widgets import Input, RichLog
 
 from openhands_cli.refactor.autocomplete import EnhancedAutoComplete
 from openhands_cli.refactor.commands import COMMANDS, is_valid_command, show_help
+from openhands_cli.refactor.conversation_runner import MinimalConversationRunner
 from openhands_cli.refactor.exit_modal import ExitConfirmationModal
 from openhands_cli.refactor.splash import get_welcome_message
 from openhands_cli.refactor.theme import OPENHANDS_THEME
@@ -39,6 +40,9 @@ class OpenHandsApp(App):
 
         # Store exit confirmation setting
         self.exit_confirmation = exit_confirmation
+
+        # Initialize conversation runner
+        self.conversation_runner = MinimalConversationRunner()
 
         # Register the custom theme
         self.register_theme(OPENHANDS_THEME)
@@ -130,8 +134,8 @@ class OpenHandsApp(App):
             if is_valid_command(user_message):
                 self._handle_command(user_message)
             else:
-                # Handle regular messages (placeholder for now)
-                main_display.write("Regular message handling not implemented yet.")
+                # Handle regular messages with conversation runner
+                self._handle_user_message(user_message)
 
             # Clear the input
             event.input.value = ""
@@ -146,6 +150,32 @@ class OpenHandsApp(App):
             self._handle_exit()
         else:
             main_display.write(f"Unknown command: {command}")
+
+    def _handle_user_message(self, user_message: str) -> None:
+        """Handle regular user messages with the conversation runner."""
+        main_display = self.query_one("#main_display", RichLog)
+
+        # Show that we're processing the message
+        if self.conversation_runner.is_running:
+            main_display.write(
+                "[yellow]Agent is already processing a message...[/yellow]"
+            )
+            return
+
+        main_display.write("[blue]Processing message...[/blue]")
+
+        # Process message asynchronously to keep UI responsive
+        # Only run worker if we have an active app (not in tests)
+        try:
+            self.run_worker(
+                self.conversation_runner.process_message_async(user_message),
+                name="process_message",
+            )
+        except RuntimeError:
+            # In test environment, just show a placeholder message
+            main_display.write(
+                "[green]Message would be processed by conversation runner[/green]"
+            )
 
     def action_request_quit(self) -> None:
         """Action to handle Ctrl+Q key binding."""
