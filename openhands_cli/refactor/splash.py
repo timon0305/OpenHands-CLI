@@ -15,7 +15,8 @@ def get_openhands_banner() -> str:
 
 def get_welcome_message(conversation_id: str | None = None) -> str:
     """Get the complete welcome message with version info."""
-    banner = get_openhands_banner()
+    # Use Rich markup for colored banner
+    banner = f"[#fae279]{get_openhands_banner()}[/]"
 
     # Get version information
     version_info = check_for_updates()
@@ -23,7 +24,8 @@ def get_welcome_message(conversation_id: str | None = None) -> str:
     message_parts = [banner, ""]
 
     if conversation_id:
-        message_parts.append(f"Initialized conversation {conversation_id}")
+        # Use accent color for "initialize conversation" text
+        message_parts.append(f"[#417cf7]Initialized conversation {conversation_id}[/]")
     else:
         message_parts.append("Welcome to OpenHands CLI!")
 

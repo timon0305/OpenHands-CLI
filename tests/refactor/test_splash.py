@@ -194,3 +194,25 @@ class TestGetWelcomeMessage:
 
             # Should end with the continue prompt
             assert lines[-1] == "Press any key to continue..."
+
+    def test_welcome_message_with_colors(self):
+        """Test that welcome message includes Rich markup for colors."""
+        with mock.patch(
+            "openhands_cli.refactor.splash.check_for_updates"
+        ) as mock_check:
+            mock_check.return_value = VersionInfo(
+                current_version="1.0.0",
+                latest_version="1.0.0",
+                needs_update=False,
+                error=None,
+            )
+
+            # Test without conversation ID
+            message = get_welcome_message()
+            assert "[#fae279]" in message  # Banner should be colored
+            assert "[/]" in message  # Color tags should be closed
+
+            # Test with conversation ID
+            message_with_id = get_welcome_message("test-123")
+            assert "[#fae279]" in message_with_id  # Banner should be colored
+            assert "[#417cf7]Initialized conversation test-123[/]" in message_with_id

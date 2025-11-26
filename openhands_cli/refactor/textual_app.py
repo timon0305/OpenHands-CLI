@@ -9,6 +9,7 @@ It creates a basic app with:
 
 from textual.app import App, ComposeResult
 from textual.containers import Container
+from textual.theme import Theme
 from textual.widgets import Input, RichLog
 
 from openhands_cli.refactor.splash import get_welcome_message
@@ -16,6 +17,40 @@ from openhands_cli.refactor.splash import get_welcome_message
 
 class OpenHandsApp(App):
     """A minimal textual app for OpenHands CLI with scrollable main display."""
+
+    def __init__(self, **kwargs):
+        """Initialize the app with custom OpenHands theme."""
+        super().__init__(**kwargs)
+
+        # Create custom OpenHands theme
+        self.openhands_theme = Theme(
+            name="openhands",
+            primary="#fae279",  # Logo, cursor color
+            secondary="#e3e3e3",  # Borders, plain text
+            accent="#417cf7",  # Special text like "initialize conversation"
+            foreground="#e3e3e3",  # Default text color
+            background="#222222",  # Background color
+            surface="#222222",  # Surface color (same as background)
+            panel="#222222",  # Panel color (same as background)
+            success="#fae279",  # Success messages (use logo color)
+            warning="#fae279",  # Warning messages (use logo color)
+            error="#fae279",  # Error messages (use logo color)
+            dark=True,  # This is a dark theme
+            variables={
+                # Placeholder text color
+                "input-placeholder-foreground": "#353639",
+                # Cursor color
+                "input-cursor-foreground": "#fae279",
+                # Selection colors
+                "input-selection-background": "#fae279 20%",
+            },
+        )
+
+        # Register the custom theme
+        self.register_theme(self.openhands_theme)
+
+        # Set the theme as active
+        self.theme = "openhands"
 
     CSS = """
     Screen {
@@ -28,6 +63,7 @@ class OpenHandsApp(App):
         margin: 1 1 0 1;
         overflow-y: scroll;
         background: $background;
+        color: $foreground;
     }
 
     #input_area {
@@ -42,8 +78,8 @@ class OpenHandsApp(App):
         width: 100%;
         height: 3;
         background: $background;
-        color: $text;
-        border: solid $accent;
+        color: $foreground;
+        border: solid $secondary;
     }
 
     #user_input:focus {

@@ -249,3 +249,32 @@ class TestOpenHandsApp:
             assert main_display.highlight is False
             assert main_display.markup is True
             assert main_display.can_focus is False
+
+    def test_custom_theme_creation(self):
+        """Test that custom OpenHands theme is created with correct colors."""
+        app = OpenHandsApp()
+
+        # Check theme exists and has correct properties
+        assert hasattr(app, "openhands_theme")
+        theme = app.openhands_theme
+
+        assert theme.name == "openhands"
+        assert theme.primary == "#fae279"  # Logo, cursor color
+        assert theme.secondary == "#e3e3e3"  # Borders, plain text
+        assert theme.accent == "#417cf7"  # Special text
+        assert theme.foreground == "#e3e3e3"  # Default text color
+        assert theme.background == "#222222"  # Background color
+        assert theme.dark is True
+
+        # Check custom variables
+        assert "input-placeholder-foreground" in theme.variables
+        assert theme.variables["input-placeholder-foreground"] == "#353639"
+        assert theme.variables["input-cursor-foreground"] == "#fae279"
+        assert theme.variables["input-selection-background"] == "#fae279 20%"
+
+    def test_theme_registration_and_activation(self):
+        """Test that theme is registered and set as active."""
+        app = OpenHandsApp()
+
+        # Check that theme is set as active
+        assert app.theme == "openhands"
