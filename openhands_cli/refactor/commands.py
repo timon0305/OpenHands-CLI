@@ -7,6 +7,8 @@ and the logic for handling command execution.
 from textual.widgets import RichLog
 from textual_autocomplete import DropdownItem
 
+from .theme import OPENHANDS_THEME
+
 
 # Available commands with descriptions after the command
 COMMANDS = [
@@ -21,12 +23,15 @@ def show_help(main_display: RichLog) -> None:
     Args:
         main_display: The RichLog widget to write help content to
     """
-    help_text = """
-[bold $primary]OpenHands CLI Help[/bold $primary]
+    primary = OPENHANDS_THEME.primary
+    secondary = OPENHANDS_THEME.secondary
+
+    help_text = f"""
+[bold {primary}]OpenHands CLI Help[/bold {primary}]
 [dim]Available commands:[/dim]
 
-  [$secondary]/help[/$secondary] - Display available commands
-  [$secondary]/exit[/$secondary] - Exit the application
+  [{secondary}]/help[/{secondary}] - Display available commands
+  [{secondary}]/exit[/{secondary}] - Exit the application
 
 [dim]Tips:[/dim]
   • Type / and press Tab to see command suggestions

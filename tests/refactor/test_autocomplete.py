@@ -1,7 +1,8 @@
 """Tests for autocomplete functionality and command handling."""
 
-import pytest
 from unittest import mock
+
+import pytest
 from textual.widgets import Input, RichLog
 from textual_autocomplete import AutoComplete, TargetState
 
@@ -26,8 +27,8 @@ class TestCommandsAndAutocomplete:
     async def test_autocomplete_widget_exists(self):
         """Test that CommandAutoComplete widget is created."""
         from openhands_cli.refactor.textual_app import get_welcome_message
-        
-        with mock.patch.object(get_welcome_message, '__call__', return_value="test"):
+
+        with mock.patch.object(get_welcome_message, "__call__", return_value="test"):
             app = OpenHandsApp()
             async with app.run_test() as pilot:
                 # Check that CommandAutoComplete widget exists
@@ -169,7 +170,9 @@ class TestCommandsAndAutocomplete:
             ("/test", "/test"),  # No separator at all
         ],
     )
-    def test_command_autocomplete_apply_completion(self, completion_value, expected_command):
+    def test_command_autocomplete_apply_completion(
+        self, completion_value, expected_command
+    ):
         """Test that CommandAutoComplete only completes the command part."""
         # Create a mock input widget
         mock_input = mock.MagicMock(spec=Input)
@@ -197,36 +200,33 @@ class TestCommandsAndAutocomplete:
             ("/help", 5, "/help"),
             ("/exit", 5, "/exit"),
             ("/unknown", 8, "/unknown"),
-            
             # Leading whitespace should be ignored
             ("  /help", 7, "/help"),
             ("\t/exit", 6, "/exit"),
             ("   /", 4, "/"),
-            
             # Non-slash commands should return empty string
             ("help", 4, ""),
             ("hello", 5, ""),
             ("", 0, ""),
             ("regular text", 12, ""),
-            
             # Commands with spaces should return empty string (stop matching)
             ("/help ", 6, ""),
             ("/help arg", 9, ""),
             ("/exit now", 9, ""),
             ("/help - Display", 15, ""),
-            
             # Cursor position tests
             ("/help", 0, ""),  # Cursor at start
             ("/help", 1, "/"),  # Cursor after slash
             ("/help", 3, "/he"),  # Cursor in middle
-            
             # Edge cases with whitespace and spaces
             ("  /help ", 8, ""),  # Leading whitespace but has space
             (" ", 1, ""),  # Just whitespace
             ("  ", 2, ""),  # Multiple whitespace
         ],
     )
-    def test_command_autocomplete_get_search_string(self, text, cursor_position, expected_search_string):
+    def test_command_autocomplete_get_search_string(
+        self, text, cursor_position, expected_search_string
+    ):
         """Test that get_search_string returns correct search strings."""
         # Create CommandAutoComplete instance with a mock input
         mock_input = mock.MagicMock(spec=Input)
