@@ -150,7 +150,7 @@ class TextualVisualizer(ConversationVisualizerBase):
             return Collapsible(
                 content_widget,
                 title=title,
-                collapsed=False,  # Start expanded for actions
+                collapsed=True,  # Start collapsed by default
             )
         elif isinstance(event, ObservationEvent):
             title = "👁️ Observation"
@@ -166,7 +166,7 @@ class TextualVisualizer(ConversationVisualizerBase):
             return Collapsible(
                 content_widget,
                 title=title,
-                collapsed=False,  # Start expanded for rejections
+                collapsed=True,  # Start collapsed by default
             )
         elif isinstance(event, MessageEvent):
             if (
@@ -191,7 +191,7 @@ class TextualVisualizer(ConversationVisualizerBase):
             return Collapsible(
                 content_widget,
                 title=title,
-                collapsed=False,  # Start expanded for messages
+                collapsed=True,  # Start collapsed by default
             )
         elif isinstance(event, AgentErrorEvent):
             title = "🚨 Agent Error"
@@ -203,7 +203,7 @@ class TextualVisualizer(ConversationVisualizerBase):
             return Collapsible(
                 content_widget,
                 title=title,
-                collapsed=False,  # Start expanded for errors
+                collapsed=True,  # Start collapsed by default
             )
         elif isinstance(event, PauseEvent):
             title = "⏸️ User Paused"

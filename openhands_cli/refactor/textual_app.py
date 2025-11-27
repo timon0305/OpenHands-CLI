@@ -11,7 +11,7 @@ from typing import ClassVar
 
 from textual.app import App, ComposeResult
 from textual.containers import Container, VerticalScroll
-from textual.widgets import Input, RichLog, Static
+from textual.widgets import Collapsible, Input, RichLog, Static
 
 from openhands_cli.refactor.autocomplete import EnhancedAutoComplete
 from openhands_cli.refactor.commands import COMMANDS, is_valid_command, show_help
@@ -28,6 +28,7 @@ class OpenHandsApp(App):
     # Key bindings
     BINDINGS: ClassVar = [
         ("ctrl+q", "request_quit", "Quit"),
+        ("ctrl+e", "expand_all", "Expand All"),
     ]
 
     def __init__(self, exit_confirmation: bool = True, **kwargs):
@@ -215,6 +216,14 @@ class OpenHandsApp(App):
     def action_request_quit(self) -> None:
         """Action to handle Ctrl+Q key binding."""
         self._handle_exit()
+
+    def action_expand_all(self) -> None:
+        """Action to handle Ctrl+E key binding - expand all collapsible widgets."""
+        main_display = self.query_one("#main_display", VerticalScroll)
+        collapsibles = main_display.query(Collapsible)
+        
+        for collapsible in collapsibles:
+            collapsible.collapsed = False
 
     def _handle_exit(self) -> None:
         """Handle exit command with optional confirmation."""
