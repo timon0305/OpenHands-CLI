@@ -120,6 +120,11 @@ class TextualVisualizer(ConversationVisualizerBase):
 
         return highlighted
 
+    def _escape_rich_markup(self, text: str) -> str:
+        """Escape Rich markup characters in text to prevent markup errors."""
+        # Escape square brackets which are used for Rich markup
+        return text.replace("[", r"\[").replace("]", r"\]")
+
     def _extract_meaningful_title(self, event, fallback_title: str) -> str:
         """Extract a meaningful title from an event, with fallback to truncated
         content."""
@@ -135,25 +140,25 @@ class TextualVisualizer(ConversationVisualizerBase):
                 cmd = str(action.command).strip()
                 if len(cmd) > 50:
                     cmd = cmd[:47] + "..."
-                return f"{action_type}: {cmd}"
+                return f"{action_type}: {self._escape_rich_markup(cmd)}"
             elif hasattr(action, "path") and action.path:
                 # For file actions, show the path
                 path = str(action.path)
                 if len(path) > 50:
                     path = "..." + path[-47:]  # Show end of path if too long
-                return f"{action_type}: {path}"
+                return f"{action_type}: {self._escape_rich_markup(path)}"
             elif hasattr(action, "content") and action.content:
                 # For content-based actions, show truncated content
                 content = str(action.content).strip().replace("\n", " ")
                 if len(content) > 50:
                     content = content[:47] + "..."
-                return f"{action_type}: {content}"
+                return f"{action_type}: {self._escape_rich_markup(content)}"
             elif hasattr(action, "message") and action.message:
                 # For message actions, show truncated message
                 msg = str(action.message).strip().replace("\n", " ")
                 if len(msg) > 50:
                     msg = msg[:47] + "..."
-                return f"{action_type}: {msg}"
+                return f"{action_type}: {self._escape_rich_markup(msg)}"
             else:
                 return f"{action_type} Action"
 
@@ -166,7 +171,7 @@ class TextualVisualizer(ConversationVisualizerBase):
                 content = str(obs.content).strip().replace("\n", " ")
                 if len(content) > 50:
                     content = content[:47] + "..."
-                return f"{obs_type}: {content}"
+                return f"{obs_type}: {self._escape_rich_markup(content)}"
             else:
                 return f"{obs_type} Observation"
 
@@ -174,18 +179,30 @@ class TextualVisualizer(ConversationVisualizerBase):
             # For MessageEvents, show truncated message content
             msg = event.llm_message
             if hasattr(msg, "content") and msg.content:
-                content = str(msg.content).strip().replace("\n", " ")
-                if len(content) > 60:
-                    content = content[:57] + "..."
+                # Extract text from content list (content is a list of TextContent
+                # objects)
+                content_text = ""
+                if isinstance(msg.content, list):
+                    for content_item in msg.content:
+                        if hasattr(content_item, "text"):
+                            content_text += content_item.text + " "
+                        elif hasattr(content_item, "content"):
+                            content_text += str(content_item.content) + " "
+                else:
+                    content_text = str(msg.content)
+
+                content_text = content_text.strip().replace("\n", " ")
+                if len(content_text) > 60:
+                    content_text = content_text[:57] + "..."
                 role = "User" if msg.role == "user" else "Agent"
-                return f"{role}: {content}"
+                return f"{role}: {self._escape_rich_markup(content_text)}"
 
         elif hasattr(event, "message") and event.message:
             # For events with direct message attribute
             content = str(event.message).strip().replace("\n", " ")
             if len(content) > 60:
                 content = content[:57] + "..."
-            return f"{fallback_title}: {content}"
+            return f"{fallback_title}: {self._escape_rich_markup(content)}"
 
         # If we can't extract meaningful info, try to truncate the visualized content
         if hasattr(event, "visualize"):
@@ -206,7 +223,7 @@ class TextualVisualizer(ConversationVisualizerBase):
                     content_str = content_str[:57] + "..."
 
                 if content_str.strip():
-                    return f"{fallback_title}: {content_str}"
+                    return f"{fallback_title}: {self._escape_rich_markup(content_str)}"
             except Exception:
                 pass
 
