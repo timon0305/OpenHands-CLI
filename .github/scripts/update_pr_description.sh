@@ -28,7 +28,7 @@ UVX_SECTION="
 ## 🚀 Try this PR
 
 \`\`\`bash
-uvx --python 3.12 openhands@$BRANCH_NAME
+uvx --python 3.12 git+https://github.com/$REPO.git@$BRANCH_NAME
 \`\`\`"
 
 # Check if the uvx section already exists in the description
