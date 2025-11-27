@@ -28,7 +28,7 @@ class OpenHandsApp(App):
     # Key bindings
     BINDINGS: ClassVar = [
         ("ctrl+q", "request_quit", "Quit"),
-        ("ctrl+e", "expand_all", "Expand All"),
+        ("ctrl+e", "expand_all", "Toggle All"),
     ]
 
     def __init__(self, exit_confirmation: bool = True, **kwargs):
@@ -218,12 +218,15 @@ class OpenHandsApp(App):
         self._handle_exit()
 
     def action_expand_all(self) -> None:
-        """Action to handle Ctrl+E key binding - expand all collapsible widgets."""
+        """Action to handle Ctrl+E key binding - toggle expand/collapse all collapsible widgets."""
         main_display = self.query_one("#main_display", VerticalScroll)
         collapsibles = main_display.query(Collapsible)
         
+        # Check if any are expanded - if so, collapse all; otherwise expand all
+        any_expanded = any(not collapsible.collapsed for collapsible in collapsibles)
+        
         for collapsible in collapsibles:
-            collapsible.collapsed = False
+            collapsible.collapsed = any_expanded
 
     def _handle_exit(self) -> None:
         """Handle exit command with optional confirmation."""

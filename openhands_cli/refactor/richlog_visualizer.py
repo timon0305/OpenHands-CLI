@@ -137,9 +137,9 @@ class TextualVisualizer(ConversationVisualizerBase):
         elif isinstance(event, ActionEvent):
             # Check if action is None (non-executable)
             if event.action is None:
-                title = "🤖 Agent Action (Not Executed)"
+                title = "Agent Action (Not Executed)"
             else:
-                title = "🤖 Agent Action"
+                title = "Agent Action"
             
             # Create content widget with metrics subtitle if available
             content_widget = Static(content)
@@ -153,7 +153,7 @@ class TextualVisualizer(ConversationVisualizerBase):
                 collapsed=True,  # Start collapsed by default
             )
         elif isinstance(event, ObservationEvent):
-            title = "👁️ Observation"
+            title = "Observation"
             content_widget = Static(content)
             return Collapsible(
                 content_widget,
@@ -161,7 +161,7 @@ class TextualVisualizer(ConversationVisualizerBase):
                 collapsed=True,  # Start collapsed for observations
             )
         elif isinstance(event, UserRejectObservation):
-            title = "❌ User Rejected Action"
+            title = "User Rejected Action"
             content_widget = Static(content)
             return Collapsible(
                 content_widget,
@@ -178,9 +178,9 @@ class TextualVisualizer(ConversationVisualizerBase):
             assert event.llm_message is not None
             
             if event.llm_message.role == "user":
-                title = "👤 User Message to Agent"
+                title = "User Message to Agent"
             else:
-                title = "🤖 Message from Agent"
+                title = "Message from Agent"
             
             # Create content widget with metrics if available
             content_widget = Static(content)
@@ -194,7 +194,7 @@ class TextualVisualizer(ConversationVisualizerBase):
                 collapsed=True,  # Start collapsed by default
             )
         elif isinstance(event, AgentErrorEvent):
-            title = "🚨 Agent Error"
+            title = "Agent Error"
             content_widget = Static(content)
             metrics = self._format_metrics_subtitle()
             if metrics:
@@ -206,7 +206,7 @@ class TextualVisualizer(ConversationVisualizerBase):
                 collapsed=True,  # Start collapsed by default
             )
         elif isinstance(event, PauseEvent):
-            title = "⏸️ User Paused"
+            title = "User Paused"
             content_widget = Static(content)
             return Collapsible(
                 content_widget,
@@ -214,7 +214,7 @@ class TextualVisualizer(ConversationVisualizerBase):
                 collapsed=True,  # Start collapsed for pauses
             )
         elif isinstance(event, Condensation):
-            title = "📦 Condensation"
+            title = "Condensation"
             content_widget = Static(content)
             metrics = self._format_metrics_subtitle()
             if metrics:
@@ -227,7 +227,7 @@ class TextualVisualizer(ConversationVisualizerBase):
             )
         else:
             # Fallback for unknown event types
-            title = f"❓ UNKNOWN Event: {event.__class__.__name__}"
+            title = f"UNKNOWN Event: {event.__class__.__name__}"
             content_widget = Static(f"{content}\n\nSource: {event.source}")
             return Collapsible(
                 content_widget,
