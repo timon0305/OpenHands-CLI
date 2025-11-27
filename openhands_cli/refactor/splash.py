@@ -35,8 +35,10 @@ def get_welcome_message(conversation_id: str | None = None, *, theme: Theme) -> 
     if conversation_id is None:
         conversation_id = str(uuid.uuid4())
 
-    # Use Rich markup for colored banner
-    banner = f"[{primary_color}]{get_openhands_banner()}[/]"
+    # Use Rich markup for colored banner (apply color to each line)
+    banner_lines = get_openhands_banner().split('\n')
+    colored_banner_lines = [f"[{primary_color}]{line}[/]" for line in banner_lines]
+    banner = '\n'.join(colored_banner_lines)
 
     # Get version information
     version_info = check_for_updates()
