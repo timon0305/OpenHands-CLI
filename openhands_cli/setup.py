@@ -96,7 +96,9 @@ def verify_agent_exists_or_setup_agent() -> Agent:
 
 
 def setup_conversation(
-    conversation_id: UUID, include_security_analyzer: bool = True
+    conversation_id: UUID,
+    include_security_analyzer: bool = True,
+    visualizer: Any | None = None,
 ) -> BaseConversation:
     """
     Setup the conversation with agent.
@@ -104,6 +106,8 @@ def setup_conversation(
     Args:
         conversation_id: conversation ID to use. If not provided, a random UUID
             will be generated.
+        include_security_analyzer: Whether to include security analyzer
+        visualizer: Optional visualizer to use. If None, defaults to CLIVisualizer
 
     Raises:
         MissingAgentSpec: If agent specification is not found or invalid.
@@ -120,7 +124,7 @@ def setup_conversation(
         # Conversation will add /<conversation_id> to this path
         persistence_dir=CONVERSATIONS_DIR,
         conversation_id=conversation_id,
-        visualizer=CLIVisualizer,
+        visualizer=visualizer if visualizer is not None else CLIVisualizer,
     )
 
     # Security analyzer is set though conversation API now

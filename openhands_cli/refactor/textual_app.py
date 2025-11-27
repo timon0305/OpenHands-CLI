@@ -41,8 +41,8 @@ class OpenHandsApp(App):
         # Store exit confirmation setting
         self.exit_confirmation = exit_confirmation
 
-        # Initialize conversation runner
-        self.conversation_runner = MinimalConversationRunner()
+        # Initialize conversation runner (updated with write callback in on_mount)
+        self.conversation_runner = None
 
         # Register the custom theme
         self.register_theme(OPENHANDS_THEME)
@@ -119,6 +119,11 @@ class OpenHandsApp(App):
         splash_content = get_welcome_message(theme=OPENHANDS_THEME)
         main_display.write(splash_content)
 
+        # Initialize conversation runner with write callback to main display
+        self.conversation_runner = MinimalConversationRunner(
+            write_callback=main_display.write
+        )
+
         # Focus the input widget
         self.query_one("#user_input", Input).focus()
 
@@ -154,6 +159,11 @@ class OpenHandsApp(App):
     def _handle_user_message(self, user_message: str) -> None:
         """Handle regular user messages with the conversation runner."""
         main_display = self.query_one("#main_display", RichLog)
+
+        # Check if conversation runner is initialized
+        if self.conversation_runner is None:
+            main_display.write("[red]Error: Conversation runner not initialized[/red]")
+            return
 
         # Show that we're processing the message
         if self.conversation_runner.is_running:

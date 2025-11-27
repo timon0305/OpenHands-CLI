@@ -147,6 +147,11 @@ class TestOpenHandsApp:
         mock_richlog = mock.MagicMock(spec=RichLog)
         app.query_one = mock.MagicMock(return_value=mock_richlog)
 
+        # Mock the conversation runner
+        mock_conversation_runner = mock.MagicMock()
+        mock_conversation_runner.is_running = False
+        app.conversation_runner = mock_conversation_runner
+
         # Create mock event with valid input
         mock_event = mock.MagicMock()
         mock_event.value = user_input
@@ -182,6 +187,11 @@ class TestOpenHandsApp:
         # Mock the query_one method
         mock_richlog = mock.MagicMock(spec=RichLog)
         app.query_one = mock.MagicMock(return_value=mock_richlog)
+
+        # Mock the conversation runner
+        mock_conversation_runner = mock.MagicMock()
+        mock_conversation_runner.is_running = False
+        app.conversation_runner = mock_conversation_runner
 
         # Create mock event
         mock_event = mock.MagicMock()

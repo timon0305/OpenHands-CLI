@@ -2,31 +2,49 @@
 
 import asyncio
 import uuid
-from typing import Optional
+from collections.abc import Callable
+from typing import Any
 
 from openhands.sdk import BaseConversation, Message, TextContent
+from openhands_cli.refactor.richlog_visualizer import RichLogVisualizer
 from openhands_cli.setup import setup_conversation
 
 
 class MinimalConversationRunner:
     """Minimal conversation runner without confirmation mode for the refactored UI."""
 
-    def __init__(self):
-        self.conversation: Optional[BaseConversation] = None
-        self.conversation_id: Optional[uuid.UUID] = None
+    def __init__(self, write_callback: Callable[[Any], None] | None = None):
+        """Initialize the conversation runner.
+
+        Args:
+            write_callback: Optional callback function to write output to RichLog.
+                          If None, will use default console output.
+        """
+        self.conversation: BaseConversation | None = None
+        self.conversation_id: uuid.UUID | None = None
         self._running = False
+        self._write_callback = write_callback
 
     def initialize_conversation(self) -> None:
         """Initialize a new conversation."""
         self.conversation_id = uuid.uuid4()
+
+        # Create custom visualizer if write callback is provided
+        visualizer = None
+        if self._write_callback:
+            visualizer = RichLogVisualizer(
+                write_callback=self._write_callback,
+                skip_user_messages=False,  # Show user messages in the UI
+            )
+
         # Setup conversation without security analyzer (no confirmation mode)
         self.conversation = setup_conversation(
-            self.conversation_id, include_security_analyzer=False
+            self.conversation_id, include_security_analyzer=False, visualizer=visualizer
         )
 
     async def process_message_async(self, user_input: str) -> None:
         """Process a user message asynchronously to keep UI unblocked.
-        
+
         Args:
             user_input: The user's message text
         """
@@ -46,7 +64,7 @@ class MinimalConversationRunner:
 
     def _run_conversation_sync(self, message: Message) -> None:
         """Run the conversation synchronously in a thread.
-        
+
         Args:
             message: The message to process
         """
@@ -67,6 +85,6 @@ class MinimalConversationRunner:
         return self._running
 
     @property
-    def current_conversation_id(self) -> Optional[str]:
+    def current_conversation_id(self) -> str | None:
         """Get the current conversation ID as a string."""
         return str(self.conversation_id) if self.conversation_id else None
