@@ -4,7 +4,6 @@ from unittest.mock import MagicMock, call, patch
 
 import pytest
 
-from openhands.sdk.security.confirmation_policy import AlwaysConfirm, NeverConfirm
 from openhands_cli.runner import ConversationRunner
 
 
@@ -36,16 +35,16 @@ def runner_enabled() -> ConversationRunner:
 
 # ---------- Core toggle behavior (parametrized) ----------
 @pytest.mark.parametrize(
-    "start_enabled, confirmation_mode, expected_enabled, expected_policy_cls",
+    "start_enabled, confirmation_mode, expected_enabled",
     [
-        # disabled -> enable
-        (False, "always-approve", True, AlwaysConfirm),
-        # enabled -> disable
-        (True, None, False, NeverConfirm),
+        # disabled -> enable (use always-ask mode)
+        (False, "always-ask", True),
+        # enabled -> disable (use always-approve mode)
+        (True, "always-approve", False),
     ],
 )
 def test_toggle_confirmation_mode_transitions(
-    start_enabled, confirmation_mode, expected_enabled, expected_policy_cls
+    start_enabled, confirmation_mode, expected_enabled
 ):
     # Arrange: pick starting runner & prepare the target conversation
     runner = ConversationRunner(make_conv(enabled=start_enabled))
@@ -62,26 +61,10 @@ def test_toggle_confirmation_mode_transitions(
         assert runner.conversation is target_conv
 
         # Assert setup called with same conversation ID + correct confirmation mode
-        if confirmation_mode is None:
-            mock_setup.assert_called_once_with(CONV_ID)
-        else:
-            mock_setup.assert_called_once_with(
-                CONV_ID, confirmation_mode=confirmation_mode
-            )
+        mock_setup.assert_called_once_with(CONV_ID, confirmation_mode=confirmation_mode)
 
-        # Assert policy applied to the *new* conversation
-        # When enabling (confirmation_mode="always"), policy is set inside
-        # setup_conversation. When disabling (confirmation_mode=None), policy
-        # is set explicitly after
-        if confirmation_mode is None:
-            target_conv.set_confirmation_policy.assert_called_once()
-            assert isinstance(
-                target_conv.set_confirmation_policy.call_args.args[0],
-                expected_policy_cls,
-            )
-        else:
-            # Policy already set inside setup_conversation, not called again
-            target_conv.set_confirmation_policy.assert_not_called()
+        # Policy is set inside setup_conversation, not called explicitly in toggle
+        target_conv.set_confirmation_policy.assert_not_called()
 
 
 # ---------- Conversation ID is preserved across multiple toggles ----------
@@ -92,15 +75,16 @@ def test_maintains_conversation_id_across_toggles(runner_disabled: ConversationR
     with patch("openhands_cli.runner.setup_conversation") as mock_setup:
         mock_setup.side_effect = [enabled_conv, disabled_conv]
 
-        # Toggle on, then off
+        # Toggle on (disabled -> enabled uses always-ask),
+        # then off (enabled -> disabled uses always-approve)
         runner_disabled.toggle_confirmation_mode()
         runner_disabled.toggle_confirmation_mode()
 
         assert runner_disabled.conversation.id == CONV_ID
         mock_setup.assert_has_calls(
             [
+                call(CONV_ID, confirmation_mode="always-ask"),
                 call(CONV_ID, confirmation_mode="always-approve"),
-                call(CONV_ID),
             ],
             any_order=False,
         )
@@ -124,7 +108,8 @@ def test_rapid_alternating_toggles_produce_expected_states(
         # Start disabled
         assert runner_disabled.is_confirmation_mode_active is False
 
-        # Enable, Disable, Enable, Disable
+        # Enable (always-ask), Disable (always-approve),
+        # Enable (always-ask), Disable (always-approve)
         runner_disabled.toggle_confirmation_mode()
         assert runner_disabled.is_confirmation_mode_active is True
 
@@ -139,10 +124,10 @@ def test_rapid_alternating_toggles_produce_expected_states(
 
         mock_setup.assert_has_calls(
             [
+                call(CONV_ID, confirmation_mode="always-ask"),
                 call(CONV_ID, confirmation_mode="always-approve"),
-                call(CONV_ID),
+                call(CONV_ID, confirmation_mode="always-ask"),
                 call(CONV_ID, confirmation_mode="always-approve"),
-                call(CONV_ID),
             ],
             any_order=False,
         )

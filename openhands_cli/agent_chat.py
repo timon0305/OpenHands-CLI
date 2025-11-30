@@ -70,7 +70,8 @@ def run_cli_entry(
     Args:
         resume_conversation_id: ID of conversation to resume
         confirmation_mode: Confirmation mode to use.
-            Options: None, "always-approve", "llm-approve"
+            Options: None (defaults to "always-ask"), "always-ask",
+            "always-approve", "llm-approve"
         queued_inputs: Optional list of input strings to queue at the start
 
     Raises:
@@ -114,14 +115,16 @@ def run_cli_entry(
     conversation = None
     session = get_session_prompter()
 
-    # Display confirmation mode status if set
-    if confirmation_mode:
-        mode_display = (
-            "always-approve" if confirmation_mode == "always-approve" else "LLM-based"
-        )
-        print_formatted_text(
-            HTML(f"<yellow>Confirmation mode: {mode_display}</yellow>")
-        )
+    # Display confirmation mode status
+    # Default to "always-ask" if not specified
+    effective_mode = confirmation_mode or "always-ask"
+    mode_display_map = {
+        "always-ask": "always-ask (confirm all actions)",
+        "always-approve": "always-approve (auto-approve all)",
+        "llm-approve": "llm-approve (confirm high-risk only)",
+    }
+    mode_display = mode_display_map.get(effective_mode, effective_mode)
+    print_formatted_text(HTML(f"<yellow>Confirmation mode: {mode_display}</yellow>"))
 
     # Main chat loop
     while True:

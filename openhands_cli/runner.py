@@ -30,15 +30,15 @@ class ConversationRunner:
         new_confirmation_mode_state = not self.is_confirmation_mode_active
 
         if new_confirmation_mode_state:
-            # Enable confirmation mode: recreate conversation with always mode
+            # Enable confirmation mode: recreate conversation with always-ask mode
+            self.conversation = setup_conversation(
+                self.conversation.id, confirmation_mode="always-ask"
+            )
+        else:
+            # Disable confirmation mode: recreate conversation with always-approve mode
             self.conversation = setup_conversation(
                 self.conversation.id, confirmation_mode="always-approve"
             )
-        else:
-            # Disable confirmation mode: recreate conversation without confirmation
-            self.conversation = setup_conversation(self.conversation.id)
-            # Explicitly set NeverConfirm policy
-            self.set_confirmation_policy(NeverConfirm())
 
     def set_confirmation_policy(
         self, confirmation_policy: ConfirmationPolicyBase

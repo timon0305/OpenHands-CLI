@@ -15,20 +15,23 @@ def create_main_parser() -> argparse.ArgumentParser:
         description="OpenHands CLI - Terminal User Interface for OpenHands AI Agent",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-            By default, OpenHands runs in CLI mode (terminal interface).
+            By default, OpenHands runs in CLI mode (terminal interface)
+            with 'always-ask' confirmation mode, where all agent actions
+            require user confirmation.
+
             Use 'serve' subcommand to launch the GUI server instead.
 
             Examples:
                 openhands                           # Start CLI mode
-                openhands --resume conversation-id  # Resume a conversation
-                openhands --task "Summarize the README"  # Start with a task
-                openhands --file README.md          # Start with file context
-                openhands --always-approve          # Always-approve mode
-                openhands --llm-approve             # LLM-based approval mode
+                openhands --resume conversation-id  # Resume conversation
+                openhands --task "Summarize README" # Start with task
+                openhands --file README.md          # Start with file
+                openhands --always-ask              # Always-ask mode
+                openhands --always-approve          # Auto-approve all
+                openhands --llm-approve             # LLM-based approval
                 openhands serve                     # Launch GUI server
-                openhands serve --gpu               # Launch GUI server with GPU support
-                openhands acp                       # Start as Agent-Client Protocol
-                                                      server for clients like Zed IDE
+                openhands serve --gpu               # Launch with GPU
+                openhands acp                       # Start as ACP server
         """,
     )
 
@@ -61,9 +64,14 @@ def create_main_parser() -> argparse.ArgumentParser:
     # Confirmation mode options (mutually exclusive)
     confirmation_group = parser.add_mutually_exclusive_group()
     confirmation_group.add_argument(
+        "--always-ask",
+        action="store_true",
+        help="Always ask for user confirmation before executing actions (default)",
+    )
+    confirmation_group.add_argument(
         "--always-approve",
         action="store_true",
-        help="Enable always-approve mode (always ask for user confirmation)",
+        help="Auto-approve all actions without asking for confirmation",
     )
     confirmation_group.add_argument(
         "--llm-approve",

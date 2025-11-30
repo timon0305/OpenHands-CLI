@@ -50,8 +50,11 @@ def main() -> None:
             from openhands_cli.agent_chat import run_cli_entry
 
             # Determine confirmation mode from args
+            # Default is "always-ask" (handled in setup_conversation)
             confirmation_mode: ConfirmationMode | None = None
-            if args.always_approve:
+            if args.always_ask:
+                confirmation_mode = "always-ask"
+            elif args.always_approve:
                 confirmation_mode = "always-approve"
             elif args.llm_approve:
                 confirmation_mode = "llm-approve"
