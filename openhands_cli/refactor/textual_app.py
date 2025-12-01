@@ -16,7 +16,7 @@ from typing import ClassVar
 from textual.app import App, ComposeResult
 from textual.containers import Container, VerticalScroll
 from textual.timer import Timer
-from textual.widgets import Input, Static
+from textual.widgets import Footer, Input, Static
 
 from openhands_cli.locations import WORK_DIR
 from openhands_cli.refactor.autocomplete import EnhancedAutoComplete
@@ -34,9 +34,9 @@ class OpenHandsApp(App):
 
     # Key bindings
     BINDINGS: ClassVar = [
-        ("ctrl+q", "request_quit", "Quit"),
-        ("ctrl+e", "expand_all", "Toggle All"),
-        ("escape", "pause_conversation", "Pause"),
+        ("ctrl+q", "request_quit", "Quit the application"),
+        ("ctrl+e", "expand_all", "Expand the cells"),
+        ("escape", "pause_conversation", "Pause the conversation"),
     ]
 
     def __init__(self, exit_confirmation: bool = True, **kwargs):
@@ -118,11 +118,16 @@ class OpenHandsApp(App):
 
     #status_line {
         height: 1;
-        dock: bottom;
         background: $background;
         color: $secondary;
         padding: 0 1;
         margin-bottom: 1;
+    }
+
+    Footer {
+        dock: bottom;
+        background: $surface;
+        color: $foreground;
     }
 
     /* Style the cursor to use primary color */
@@ -219,6 +224,9 @@ class OpenHandsApp(App):
 
         # Status line - shows work directory and timer
         yield Static(id="status_line")
+
+        # Footer - shows available key bindings
+        yield Footer()
 
     def on_mount(self) -> None:
         """Called when app starts."""
