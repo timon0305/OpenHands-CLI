@@ -25,7 +25,7 @@ from openhands_cli.refactor.conversation_runner import MinimalConversationRunner
 from openhands_cli.refactor.exit_modal import ExitConfirmationModal
 from openhands_cli.refactor.non_clickable_collapsible import NonClickableCollapsible
 from openhands_cli.refactor.richlog_visualizer import TextualVisualizer
-from openhands_cli.refactor.splash import get_welcome_message
+from openhands_cli.refactor.splash import get_splash_content
 from openhands_cli.refactor.theme import OPENHANDS_THEME
 
 
@@ -130,14 +130,79 @@ class OpenHandsApp(App):
         background: $primary;
         color: $background;
     }
+
+    /* Panel-like styling for splash screen elements */
+    .splash-banner {
+        padding: 0 1;
+        background: $background;
+        color: $primary;
+        text-align: center;
+    }
+
+    .splash-version {
+        padding: 0 1;
+        background: $background;
+        color: $foreground;
+        text-align: center;
+        margin-bottom: 1;
+    }
+
+    .status-panel {
+        width: auto;
+        height: auto;
+        border: solid $primary;
+        background: $surface;
+        padding: 1;
+        text-align: center;
+        margin: 1 0;
+        border-title-align: center;
+    }
+
+    .conversation-panel {
+        width: auto;
+        height: auto;
+        border: solid $secondary;
+        background: $surface;
+        padding: 1;
+        text-align: center;
+        margin: 1 0;
+        border-title-align: center;
+    }
+
+    .splash-instruction {
+        padding: 0 1;
+        background: $background;
+        color: $foreground;
+        margin: 0;
+    }
+
+    .splash-instruction-header {
+        padding: 0 1;
+        background: $background;
+        color: $primary;
+        margin: 1 0 0 0;
+    }
+
+    .splash-update-notice {
+        padding: 0 1;
+        background: $background;
+        color: $primary;
+        margin: 1 0 0 0;
+    }
     """
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
         # Main scrollable display - using VerticalScroll to support Collapsible widgets
         with VerticalScroll(id="main_display"):
-            # Add initial splash content as a Static widget
-            yield Static(id="splash_content")
+            # Add initial splash content as individual widgets
+            yield Static(id="splash_banner", classes="splash-banner")
+            yield Static(id="splash_version", classes="splash-version")
+            yield Static(id="splash_status", classes="status-panel")
+            yield Static(id="splash_conversation", classes="conversation-panel")
+            yield Static(id="splash_instructions_header", classes="splash-instruction-header")
+            yield Static(id="splash_instructions", classes="splash-instruction")
+            yield Static(id="splash_update_notice", classes="splash-update-notice")
 
         # Input area - docked to bottom
         with Container(id="input_area"):
@@ -155,10 +220,31 @@ class OpenHandsApp(App):
 
     def on_mount(self) -> None:
         """Called when app starts."""
-        # Add the splash screen content to the splash widget
-        splash_widget = self.query_one("#splash_content", Static)
-        splash_content = get_welcome_message(theme=OPENHANDS_THEME)
-        splash_widget.update(splash_content)
+        # Get structured splash content
+        splash_content = get_splash_content(theme=OPENHANDS_THEME)
+
+        # Update individual splash widgets
+        self.query_one("#splash_banner", Static).update(splash_content["banner"])
+        self.query_one("#splash_version", Static).update(splash_content["version"])
+        self.query_one("#splash_status", Static).update(splash_content["status_text"])
+        self.query_one("#splash_conversation", Static).update(
+            splash_content["conversation_text"]
+        )
+        self.query_one("#splash_instructions_header", Static).update(
+            splash_content["instructions_header"]
+        )
+
+        # Join instructions into a single string
+        instructions_text = "\n".join(splash_content["instructions"])
+        self.query_one("#splash_instructions", Static).update(instructions_text)
+
+        # Update notice (hide if None)
+        update_notice_widget = self.query_one("#splash_update_notice", Static)
+        if splash_content["update_notice"]:
+            update_notice_widget.update(splash_content["update_notice"])
+            update_notice_widget.display = True
+        else:
+            update_notice_widget.display = False
 
         # Get the main display container for the visualizer
         main_display = self.query_one("#main_display", VerticalScroll)

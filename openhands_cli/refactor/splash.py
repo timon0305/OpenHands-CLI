@@ -19,6 +19,55 @@ def get_openhands_banner() -> str:
           |_|"""
 
 
+def get_splash_content(conversation_id: str | None = None, *, theme: Theme) -> dict:
+    """Get structured splash screen content for native Textual widgets.
+
+    Args:
+        conversation_id: Optional conversation ID to display
+        theme: Theme to use for colors
+    """
+    # Use theme colors
+    primary_color = theme.primary
+    accent_color = theme.accent
+
+    # Generate UUID if no conversation_id provided
+    if conversation_id is None:
+        conversation_id = str(uuid.uuid4())
+
+    # Use Rich markup for colored banner (apply color to each line)
+    banner_lines = get_openhands_banner().split("\n")
+    colored_banner_lines = [f"[{primary_color}]{line}[/]" for line in banner_lines]
+    banner = "\n".join(colored_banner_lines)
+
+    # Get version information
+    version_info = check_for_updates()
+
+    # Create structured content as dictionary
+    content = {
+        "banner": banner,
+        "version": f"OpenHands CLI v{version_info.current_version}",
+        "status_text": "All set up!",
+        "conversation_text": f"[{accent_color}]Initialized conversation[/] {conversation_id}",
+        "conversation_id": conversation_id,
+        "instructions_header": f"[{primary_color}]What do you want to build?[/]",
+        "instructions": [
+            "1. Ask questions, edit files, or run commands.",
+            "2. Use @ to look up a file in the folder structure",
+            "3. Type /help for help or / to immediately scroll through available commands"
+        ],
+        "update_notice": None
+    }
+
+    # Add update notification if needed
+    if version_info.needs_update and version_info.latest_version:
+        content["update_notice"] = (
+            f"[{primary_color}]⚠ Update available: {version_info.latest_version}[/]\n"
+            "Run 'uv tool upgrade openhands' to update"
+        )
+
+    return content
+
+
 def get_welcome_message(conversation_id: str | None = None, *, theme: Theme) -> str:
     """Get the complete welcome message with version info.
 
