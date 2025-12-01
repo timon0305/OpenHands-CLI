@@ -23,13 +23,13 @@ def create_main_parser() -> argparse.ArgumentParser:
 
             Examples:
                 openhands                           # Start CLI mode
-                openhands --resume conversation-id  # Resume conversation in CLI mode
-                openhands --always-approve          # Auto-approve all agent actions
-                openhands --llm-approve             # Auto-approve actions based on LLM risk analysis
+                openhands --resume conversation-id  # Resume conversation
+                openhands --always-approve          # Auto-approve all actions
+                openhands --llm-approve             # LLM-based approval mode
                 openhands serve                     # Launch GUI server
-                openhands serve --gpu               # Launch GUI server with GPU support
-                openhands acp                       # Start as Agent-Client Protocol
-                                                      server for clients like Zed IDE
+                openhands serve --gpu               # Launch with GPU support
+                openhands acp                       # Agent-Client Protocol
+                                                      server (e.g., Zed IDE)
         """,
     )
 

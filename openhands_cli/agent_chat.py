@@ -65,7 +65,7 @@ def _print_exit_hint(conversation_id: str) -> None:
 
 def run_cli_entry(
     resume_conversation_id: str | None = None,
-    confirmation_policy: ConfirmationPolicyBase = AlwaysConfirm(),
+    confirmation_policy: ConfirmationPolicyBase | None = None,
     queued_inputs: list[str] | None = None,
 ) -> None:
     """Run the agent chat session using the agent SDK.
@@ -74,6 +74,7 @@ def run_cli_entry(
         resume_conversation_id: ID of conversation to resume
         confirmation_policy: Confirmation policy to use.
             Options: AlwaysConfirm(), NeverConfirm(), ConfirmRisky()
+            Defaults to AlwaysConfirm() if not provided.
         queued_inputs: Optional list of input strings to queue at the start
 
     Raises:
@@ -81,6 +82,8 @@ def run_cli_entry(
         KeyboardInterrupt: If user interrupts the session
         EOFError: If EOF is encountered
     """
+    if confirmation_policy is None:
+        confirmation_policy = AlwaysConfirm()
 
     # Normalize queued_inputs to a local copy to prevent mutating the caller's list
     pending_inputs = list(queued_inputs) if queued_inputs else []

@@ -60,7 +60,9 @@ class TestConfirmationMode:
                 mock_conversation_instance = MagicMock()
                 mock_conversation_class.return_value = mock_conversation_instance
 
-                result = setup_conversation(mock_conversation_id)
+                result = setup_conversation(
+                    mock_conversation_id, confirmation_policy=AlwaysConfirm()
+                )
 
                 # Verify conversation was created and returned
                 assert result == mock_conversation_instance
@@ -87,14 +89,14 @@ class TestConfirmationMode:
 
             # Should raise MissingAgentSpec
             with pytest.raises(MissingAgentSpec) as exc_info:
-                setup_conversation(uuid.uuid4())
+                setup_conversation(uuid.uuid4(), confirmation_policy=AlwaysConfirm())
 
             assert "Agent specification not found" in str(exc_info.value)
             mock_agent_store_class.assert_called_once()
             mock_agent_store_instance.load.assert_called_once()
 
-    def test_setup_conversation_with_always_ask_mode(self) -> None:
-        """Test setup_conversation sets AlwaysConfirm with always-ask mode."""
+    def test_setup_conversation_with_always_confirm_policy(self) -> None:
+        """Test setup_conversation sets AlwaysConfirm policy."""
         with patch.dict(os.environ, {"LLM_MODEL": "test-model"}):
             with (
                 patch("openhands_cli.setup.Conversation") as mock_conversation_class,
@@ -118,7 +120,7 @@ class TestConfirmationMode:
                 mock_conversation_class.return_value = mock_conversation_instance
 
                 result = setup_conversation(
-                    mock_conversation_id, confirmation_mode="always-ask"
+                    mock_conversation_id, confirmation_policy=AlwaysConfirm()
                 )
 
                 # Verify AlwaysConfirm policy was set
@@ -130,8 +132,8 @@ class TestConfirmationMode:
                 )
                 assert isinstance(policy_arg, AlwaysConfirm)
 
-    def test_setup_conversation_with_always_approve_mode(self) -> None:
-        """Test setup_conversation sets NeverConfirm with always-approve."""
+    def test_setup_conversation_with_never_confirm_policy(self) -> None:
+        """Test setup_conversation sets NeverConfirm policy."""
         with patch.dict(os.environ, {"LLM_MODEL": "test-model"}):
             with (
                 patch("openhands_cli.setup.Conversation") as mock_conversation_class,
@@ -155,22 +157,20 @@ class TestConfirmationMode:
                 mock_conversation_class.return_value = mock_conversation_instance
 
                 result = setup_conversation(
-                    mock_conversation_id, confirmation_mode="always-approve"
+                    mock_conversation_id, confirmation_policy=NeverConfirm()
                 )
 
-                # Verify NeverConfirm policy was set (no security analyzer)
+                # Verify NeverConfirm policy was set
                 assert result == mock_conversation_instance
-                mock_conversation_instance.set_security_analyzer.assert_called_once_with(
-                    None
-                )
+                mock_conversation_instance.set_security_analyzer.assert_called_once()
                 mock_conversation_instance.set_confirmation_policy.assert_called_once()
                 policy_arg = (
                     mock_conversation_instance.set_confirmation_policy.call_args[0][0]
                 )
                 assert isinstance(policy_arg, NeverConfirm)
 
-    def test_setup_conversation_with_llm_approve_mode(self) -> None:
-        """Test that setup_conversation sets ConfirmRisky policy with llm mode."""
+    def test_setup_conversation_with_confirm_risky_policy(self) -> None:
+        """Test that setup_conversation sets ConfirmRisky policy."""
         with patch.dict(os.environ, {"LLM_MODEL": "test-model"}):
             with (
                 patch("openhands_cli.setup.Conversation") as mock_conversation_class,
@@ -194,7 +194,8 @@ class TestConfirmationMode:
                 mock_conversation_class.return_value = mock_conversation_instance
 
                 result = setup_conversation(
-                    mock_conversation_id, confirmation_mode="llm-approve"
+                    mock_conversation_id,
+                    confirmation_policy=ConfirmRisky(threshold=SecurityRisk.HIGH),
                 )
 
                 # Verify ConfirmRisky policy was set
@@ -577,10 +578,12 @@ class TestConfirmationMode:
                         # Verify that confirmation mode was disabled
                         assert result == UserConfirmation.ACCEPT
                         # Should have called setup_conversation to toggle
-                        # confirmation mode (with always-approve since we're
-                        # disabling confirmation)
-                        mock_setup.assert_called_once_with(
-                            mock_conversation.id, confirmation_mode="always-approve"
+                        # confirmation mode (with NeverConfirm policy)
+                        mock_setup.assert_called_once()
+                        call_args = mock_setup.call_args
+                        assert call_args.args[0] == mock_conversation.id
+                        assert isinstance(
+                            call_args.kwargs["confirmation_policy"], NeverConfirm
                         )
                         # Policy is set inside setup_conversation, not called
                         # on new conversation

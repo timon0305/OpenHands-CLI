@@ -6,6 +6,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from openhands.sdk.security.confirmation_policy import (
+    AlwaysConfirm,
+    ConfirmRisky,
+    NeverConfirm,
+)
+from openhands.sdk.security.risk import SecurityRisk
 from openhands_cli import simple_main
 from openhands_cli.argparsers.main_parser import create_main_parser
 from openhands_cli.simple_main import main
@@ -47,11 +53,11 @@ class TestMainEntryPoint:
         simple_main.main()
 
         # Should call run_cli_entry with no resume conversation ID,
-        # no confirmation mode, and no queued inputs
+        # AlwaysConfirm policy (default), and no queued inputs
         mock_run_agent_chat.assert_called_once()
         kwargs = mock_run_agent_chat.call_args.kwargs
         assert kwargs["resume_conversation_id"] is None
-        assert kwargs["confirmation_mode"] is None
+        assert isinstance(kwargs["confirmation_policy"], AlwaysConfirm)
         assert kwargs["queued_inputs"] is None
 
     @patch("openhands_cli.agent_chat.run_cli_entry")
@@ -116,7 +122,7 @@ class TestMainEntryPoint:
         mock_run_agent_chat.assert_called_once()
         kwargs = mock_run_agent_chat.call_args.kwargs
         assert kwargs["resume_conversation_id"] == "test-conversation-id"
-        assert kwargs["confirmation_mode"] is None
+        assert isinstance(kwargs["confirmation_policy"], AlwaysConfirm)
         assert kwargs["queued_inputs"] is None
 
     @patch("openhands_cli.agent_chat.run_cli_entry")
@@ -124,18 +130,18 @@ class TestMainEntryPoint:
     def test_main_with_always_approve_argument(
         self, mock_run_agent_chat: MagicMock
     ) -> None:
-        """Test that main() passes always-approve confirmation mode when provided."""
+        """Test that main() passes NeverConfirm policy with --always-approve."""
         # Mock run_cli_entry to raise KeyboardInterrupt to exit gracefully
         mock_run_agent_chat.side_effect = KeyboardInterrupt()
 
         # Should complete without raising an exception (graceful exit)
         simple_main.main()
 
-        # Should call run_cli_entry with always confirmation mode
+        # Should call run_cli_entry with NeverConfirm policy
         mock_run_agent_chat.assert_called_once()
         kwargs = mock_run_agent_chat.call_args.kwargs
         assert kwargs["resume_conversation_id"] is None
-        assert kwargs["confirmation_mode"] == "always-approve"
+        assert isinstance(kwargs["confirmation_policy"], NeverConfirm)
         assert kwargs["queued_inputs"] is None
 
     @patch("openhands_cli.agent_chat.run_cli_entry")
@@ -143,94 +149,46 @@ class TestMainEntryPoint:
     def test_main_with_llm_approve_argument(
         self, mock_run_agent_chat: MagicMock
     ) -> None:
-        """Test that main() passes llm-approve confirmation mode when provided."""
+        """Test that main() passes ConfirmRisky policy with --llm-approve."""
         # Mock run_cli_entry to raise KeyboardInterrupt to exit gracefully
         mock_run_agent_chat.side_effect = KeyboardInterrupt()
 
         # Should complete without raising an exception (graceful exit)
         simple_main.main()
 
-        # Should call run_cli_entry with llm confirmation mode
+        # Should call run_cli_entry with ConfirmRisky policy
         mock_run_agent_chat.assert_called_once()
         kwargs = mock_run_agent_chat.call_args.kwargs
         assert kwargs["resume_conversation_id"] is None
-        assert kwargs["confirmation_mode"] == "llm-approve"
-        assert kwargs["queued_inputs"] is None
-
-    @patch("openhands_cli.agent_chat.run_cli_entry")
-    @patch("sys.argv", ["openhands", "--always-ask"])
-    def test_main_with_always_ask_argument(
-        self, mock_run_agent_chat: MagicMock
-    ) -> None:
-        """Test that main() passes always-ask confirmation mode when provided."""
-        # Mock run_cli_entry to raise KeyboardInterrupt to exit gracefully
-        mock_run_agent_chat.side_effect = KeyboardInterrupt()
-
-        # Should complete without raising an exception (graceful exit)
-        simple_main.main()
-
-        # Should call run_cli_entry with always-ask confirmation mode
-        mock_run_agent_chat.assert_called_once()
-        kwargs = mock_run_agent_chat.call_args.kwargs
-        assert kwargs["resume_conversation_id"] is None
-        assert kwargs["confirmation_mode"] == "always-ask"
+        policy = kwargs["confirmation_policy"]
+        assert isinstance(policy, ConfirmRisky)
+        assert policy.threshold == SecurityRisk.HIGH
         assert kwargs["queued_inputs"] is None
 
 
 @pytest.mark.parametrize(
-    "argv,expected_kwargs",
+    "argv,expected_resume_id,expected_policy_cls,expected_threshold",
     [
-        (
-            ["openhands"],
-            {
-                "resume_conversation_id": None,
-                "confirmation_mode": None,
-                "queued_inputs": None,
-            },
-        ),
-        (
-            ["openhands", "--resume", "test-id"],
-            {
-                "resume_conversation_id": "test-id",
-                "confirmation_mode": None,
-                "queued_inputs": None,
-            },
-        ),
-        (
-            ["openhands", "--always-ask"],
-            {
-                "resume_conversation_id": None,
-                "confirmation_mode": "always-ask",
-                "queued_inputs": None,
-            },
-        ),
-        (
-            ["openhands", "--always-approve"],
-            {
-                "resume_conversation_id": None,
-                "confirmation_mode": "always-approve",
-                "queued_inputs": None,
-            },
-        ),
+        (["openhands"], None, AlwaysConfirm, None),
+        (["openhands", "--resume", "test-id"], "test-id", AlwaysConfirm, None),
+        (["openhands", "--always-approve"], None, NeverConfirm, None),
         (
             ["openhands", "--llm-approve"],
-            {
-                "resume_conversation_id": None,
-                "confirmation_mode": "llm-approve",
-                "queued_inputs": None,
-            },
+            None,
+            ConfirmRisky,
+            SecurityRisk.HIGH,
         ),
         (
             ["openhands", "--resume", "test-id", "--always-approve"],
-            {
-                "resume_conversation_id": "test-id",
-                "confirmation_mode": "always-approve",
-                "queued_inputs": None,
-            },
+            "test-id",
+            NeverConfirm,
+            None,
         ),
     ],
 )
-def test_main_cli_calls_run_cli_entry(monkeypatch, argv, expected_kwargs):
+def test_main_cli_calls_run_cli_entry(
+    monkeypatch, argv, expected_resume_id, expected_policy_cls, expected_threshold
+):
     # Patch sys.argv since main() takes no params
     monkeypatch.setattr(sys, "argv", argv, raising=False)
 
@@ -243,7 +201,12 @@ def test_main_cli_calls_run_cli_entry(monkeypatch, argv, expected_kwargs):
 
     # Execute (no SystemExit expected on success)
     main()
-    assert called["kwargs"] == expected_kwargs
+    kwargs = called["kwargs"]
+    assert kwargs["resume_conversation_id"] == expected_resume_id
+    assert isinstance(kwargs["confirmation_policy"], expected_policy_cls)
+    if expected_threshold is not None:
+        assert kwargs["confirmation_policy"].threshold == expected_threshold
+    assert kwargs["queued_inputs"] is None
 
 
 def test_main_cli_task_sets_queued_inputs(monkeypatch):
@@ -374,14 +337,6 @@ def test_main_serve_calls_launch_gui_server(monkeypatch, argv, expected_kwargs):
         (["openhands", "serve", "--help"], 0),  # subcommand help
         (
             ["openhands", "--always-approve", "--llm-approve"],
-            2,
-        ),  # mutually exclusive
-        (
-            ["openhands", "--always-ask", "--always-approve"],
-            2,
-        ),  # mutually exclusive
-        (
-            ["openhands", "--always-ask", "--llm-approve"],
             2,
         ),  # mutually exclusive
     ],
