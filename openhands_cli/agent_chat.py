@@ -110,7 +110,7 @@ def run_cli_entry(
         print_formatted_text(HTML("\n<yellow>Goodbye! 👋</yellow>"))
         return
 
-    display_welcome(conversation_id, bool(resume_conversation_id))
+    display_welcome(conversation_id, confirmation_policy, bool(resume_conversation_id))
 
     # Track session start time for uptime calculation
     session_start_time = datetime.now()
@@ -119,8 +119,6 @@ def run_cli_entry(
     runner = None
     conversation = None
     session = get_session_prompter()
-
-    print_formatted_text(HTML(f"<gray>Confirmation mode: {confirmation_policy}</gray>"))
 
     # Main chat loop
     while True:

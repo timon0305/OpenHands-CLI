@@ -7,6 +7,7 @@ from prompt_toolkit.document import Document
 from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.shortcuts import clear
 
+from openhands.sdk.security.confirmation_policy import ConfirmationPolicyBase
 from openhands_cli.pt_style import get_cli_style
 from openhands_cli.version_check import check_for_updates
 
@@ -90,7 +91,11 @@ def display_help() -> None:
     print_formatted_text("")
 
 
-def display_welcome(conversation_id: UUID, resume: bool = False) -> None:
+def display_welcome(
+    conversation_id: UUID,
+    confirmation_policy: ConfirmationPolicyBase | None = None,
+    resume: bool = False,
+) -> None:
     """Display welcome message."""
     clear()
     display_banner(str(conversation_id), resume)
@@ -107,6 +112,14 @@ def display_welcome(conversation_id: UUID, resume: bool = False) -> None:
             HTML(
                 "<grey>Run</grey> <gold>uv tool upgrade openhands</gold> "
                 "<grey>to update</grey>"
+            )
+        )
+
+    if confirmation_policy:
+        print_formatted_text(
+            HTML(
+                "<grey>Confirmation mode: "
+                f"{confirmation_policy.__class__.__name__}</grey>"
             )
         )
 
