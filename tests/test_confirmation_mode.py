@@ -540,6 +540,16 @@ class TestConfirmationMode:
         mock_conversation = MagicMock()
         mock_conversation.confirmation_policy_active = True
         mock_conversation.is_confirmation_mode_active = True
+
+        # Setup mock to track state changes when set_confirmation_policy is called
+        def set_policy_side_effect(policy):
+            if isinstance(policy, NeverConfirm):
+                mock_conversation.is_confirmation_mode_active = False
+            else:
+                mock_conversation.is_confirmation_mode_active = True
+
+        mock_conversation.set_confirmation_policy.side_effect = set_policy_side_effect
+
         runner = ConversationRunner(mock_conversation)
 
         # Enable confirmation mode first
@@ -565,29 +575,17 @@ class TestConfirmationMode:
 
                 # Mock print_formatted_text to avoid output during test
                 with patch("openhands_cli.runner.print_formatted_text"):
-                    # Mock setup_conversation to avoid real conversation creation
-                    with patch("openhands_cli.runner.setup_conversation") as mock_setup:
-                        # Return a new mock conversation with confirmation mode disabled
-                        new_mock_conversation = MagicMock()
-                        new_mock_conversation.id = mock_conversation.id
-                        new_mock_conversation.is_confirmation_mode_active = False
-                        mock_setup.return_value = new_mock_conversation
+                    result = runner._handle_confirmation_request()
 
-                        result = runner._handle_confirmation_request()
-
-                        # Verify that confirmation mode was disabled
-                        assert result == UserConfirmation.ACCEPT
-                        # Should have called setup_conversation to toggle
-                        # confirmation mode (with NeverConfirm policy)
-                        mock_setup.assert_called_once()
-                        call_args = mock_setup.call_args
-                        assert call_args.args[0] == mock_conversation.id
-                        assert isinstance(
-                            call_args.kwargs["confirmation_policy"], NeverConfirm
-                        )
-                        # Policy is set inside setup_conversation, not called
-                        # on new conversation
-                        new_mock_conversation.set_confirmation_policy.assert_not_called()
+                    # Verify that confirmation mode was disabled
+                    assert result == UserConfirmation.ACCEPT
+                    # Should have called toggle_confirmation_mode which calls
+                    # set_confirmation_policy with NeverConfirm
+                    # Check that set_confirmation_policy was called with NeverConfirm
+                    calls = mock_conversation.set_confirmation_policy.call_args_list
+                    # First call is AlwaysConfirm, second should be NeverConfirm
+                    assert len(calls) >= 2
+                    assert isinstance(calls[-1].args[0], NeverConfirm)
 
     @patch("openhands_cli.user_actions.agent_action.cli_confirm")
     def test_ask_user_confirmation_auto_confirm_safe(

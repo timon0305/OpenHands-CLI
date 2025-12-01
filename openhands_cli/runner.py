@@ -12,7 +12,6 @@ from openhands.sdk.security.confirmation_policy import (
     NeverConfirm,
 )
 from openhands_cli.listeners.pause_listener import PauseListener, pause_listener
-from openhands_cli.setup import setup_conversation
 from openhands_cli.user_actions import ask_user_confirmation
 from openhands_cli.user_actions.types import UserConfirmation
 
@@ -32,15 +31,10 @@ class ConversationRunner:
 
         if new_confirmation_mode_state:
             # Enable confirmation mode: set AlwaysConfirm policy
-            self.conversation = setup_conversation(
-                self.conversation.id, confirmation_policy=AlwaysConfirm()
-            )
+            self.set_confirmation_policy(AlwaysConfirm())
         else:
-            # Disable confirmation mode: set NeverConfirm policy and remove
-            # security analyzer
-            self.conversation = setup_conversation(
-                self.conversation.id, confirmation_policy=NeverConfirm()
-            )
+            # Disable confirmation mode: set NeverConfirm policy
+            self.set_confirmation_policy(NeverConfirm())
 
     def set_confirmation_policy(
         self, confirmation_policy: ConfirmationPolicyBase
