@@ -127,8 +127,8 @@ pythonVersion = "3.12"
 useLibraryCodeForTypes = true
 typeCheckingMode = "standard"
 
-# USE EXACT COMMIT FROM AGENT-SDK (PR #1170 - visualization improvements)
+# USE EXACT COMMIT FROM AGENT-SDK (includes load_public_skills support)
 
-# [tool.uv.sources]
-# openhands-sdk = { git = "https://github.com/OpenHands/software-agent-sdk.git", subdirectory = "openhands-sdk", rev = "22773b4a1e5b28c99f5b7bac082195745a307441" }
-# openhands-tools = { git = "https://github.com/OpenHands/software-agent-sdk.git", subdirectory = "openhands-tools", rev = "22773b4a1e5b28c99f5b7bac082195745a307441" }
+[tool.uv.sources]
+openhands-sdk = { git = "https://github.com/OpenHands/software-agent-sdk.git", subdirectory = "openhands-sdk", rev = "f038f7cccbec0147b54877674741e12d5672507b" }
+openhands-tools = { git = "https://github.com/OpenHands/software-agent-sdk.git", subdirectory = "openhands-tools", rev = "f038f7cccbec0147b54877674741e12d5672507b" }
