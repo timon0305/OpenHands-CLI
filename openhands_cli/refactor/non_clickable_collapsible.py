@@ -80,12 +80,15 @@ class NonClickableCollapsibleTitle(Container, can_focus=False):
         expanded_symbol: str,
         collapsed: bool,
     ) -> None:
+        # Initialize _title_static first to avoid AttributeError in watchers
+        self._title_static: Static | None = None
         super().__init__()
         self.collapsed_symbol = collapsed_symbol
         self.expanded_symbol = expanded_symbol
+        self._label_text = label
+        # Set reactive properties after _title_static is initialized
         self.label = Content.from_text(label)
         self.collapsed = collapsed
-        self._title_static: Static | None = None
 
     class Toggle(Message):
         """Request toggle."""
@@ -95,8 +98,8 @@ class NonClickableCollapsibleTitle(Container, can_focus=False):
 
     def compose(self) -> ComposeResult:
         """Compose the title with copy button."""
+        self._title_static = Static(classes="title-text")
         with Horizontal():
-            self._title_static = Static(classes="title-text")
             yield self._title_static
             yield Button("📋", id="copy-btn", classes="copy-button")
 
