@@ -39,11 +39,11 @@ class OpenHandsApp(App):
 
     # Key bindings
     BINDINGS: ClassVar = [
-        ("ctrl+q", "request_quit", "Quit the application"),
+        ("f1", "toggle_input_mode", "Toggle single/multi-line input"),
         ("f2", "expand_all", "Expand the cells"),
-        ("escape", "pause_conversation", "Pause the conversation"),
-        ("ctrl+m", "toggle_input_mode", "Toggle single/multi-line input"),
         ("ctrl+j", "submit_textarea", "Submit multi-line input"),
+        ("escape", "pause_conversation", "Pause the conversation"),
+        ("ctrl+q", "request_quit", "Quit the application"),
     ]
 
     def __init__(self, exit_confirmation: bool = True, **kwargs):
@@ -344,9 +344,9 @@ class OpenHandsApp(App):
 
         # Add input mode indicator
         if self.is_multiline_mode:
-            mode_indicator = " [Multi-line: Ctrl+J to submit, Ctrl+M to toggle]"
+            mode_indicator = " [Multi-line: Ctrl+J to submit]"
         else:
-            mode_indicator = " [Ctrl+M for multi-line]"
+            mode_indicator = " [F1 for multi-line]"
 
         # Only show controls and timer when conversation is running
         if (
@@ -636,7 +636,7 @@ class OpenHandsApp(App):
             self.mcp_panel = None
 
     def action_toggle_input_mode(self) -> None:
-        """Action to handle Ctrl+M key binding - toggle between Input and TextArea."""
+        """Action to toggle between Input and TextArea."""
         self._toggle_input_mode()
 
     def action_submit_textarea(self) -> None:
