@@ -7,7 +7,6 @@ from collections.abc import Callable
 from openhands.sdk import BaseConversation, Message, TextContent
 from openhands.sdk.conversation.state import ConversationExecutionStatus
 from openhands.sdk.security.confirmation_policy import (
-    AlwaysConfirm,
     ConfirmationPolicyBase,
     ConfirmRisky,
     NeverConfirm,
@@ -20,50 +19,20 @@ from openhands_cli.user_actions.types import UserConfirmation
 class ConversationRunner:
     """Conversation runner with confirmation mode support for the refactored UI."""
 
-    def __init__(self, visualizer: TextualVisualizer | None = None):
+    def __init__(
+        self, conversation_id: uuid.UUID, visualizer: TextualVisualizer | None = None
+    ):
         """Initialize the conversation runner.
 
         Args:
             visualizer: Optional visualizer for output display.
         """
         self.conversation: BaseConversation | None = None
-        self.conversation_id: uuid.UUID | None = None
+        self.conversation_id: uuid.UUID = conversation_id
         self._running = False
         self.visualizer = visualizer
         self._confirmation_mode_active = False
         self._confirmation_callback: Callable | None = None
-
-    def initialize_conversation(
-        self, 
-        include_security_analyzer: bool = False,
-        conversation_id: uuid.UUID | None = None
-    ) -> None:
-        """Initialize a new conversation.
-
-        Args:
-            include_security_analyzer: Whether to include security analyzer for
-                confirmation mode.
-            conversation_id: Optional conversation ID to resume. If None, creates new.
-        """
-        if conversation_id:
-            self.conversation_id = conversation_id
-        else:
-            self.conversation_id = uuid.uuid4()
-
-        # Choose confirmation policy based on security analyzer setting
-        if include_security_analyzer:
-            confirmation_policy = ConfirmRisky()
-        else:
-            confirmation_policy = NeverConfirm()
-
-        # Setup conversation with proper parameters
-        self.conversation = setup_conversation(
-            self.conversation_id,
-            confirmation_policy=confirmation_policy,
-            visualizer=self.visualizer,
-        )
-
-        self._confirmation_mode_active = include_security_analyzer
 
     @property
     def is_confirmation_mode_active(self) -> bool:
@@ -79,14 +48,6 @@ class ConversationRunner:
             confirmation_policy = ConfirmRisky()
         else:
             confirmation_policy = NeverConfirm()
-
-        # Reinitialize conversation with new confirmation mode state
-        if self.conversation_id:
-            self.conversation = setup_conversation(
-                self.conversation_id,
-                confirmation_policy=confirmation_policy,
-                visualizer=self.visualizer,
-            )
 
         self._confirmation_mode_active = new_confirmation_mode_state
 
@@ -124,6 +85,32 @@ class ConversationRunner:
         loop = asyncio.get_running_loop()
         # Run send_message in the same thread pool, not on the UI loop
         await loop.run_in_executor(None, self.conversation.send_message, message)
+
+    def initialize_conversation(
+        self,
+        include_security_analyzer: bool = False,
+    ) -> None:
+        """Initialize a new conversation.
+
+        Args:
+            include_security_analyzer: Whether to include security analyzer for
+                confirmation mode.
+        """
+
+        # Choose confirmation policy based on security analyzer setting
+        if include_security_analyzer:
+            confirmation_policy = ConfirmRisky()
+        else:
+            confirmation_policy = NeverConfirm()
+
+        # Setup conversation with proper parameters
+        self.conversation = setup_conversation(
+            self.conversation_id,
+            confirmation_policy=confirmation_policy,
+            visualizer=self.visualizer,
+        )
+
+        self._confirmation_mode_active = include_security_analyzer
 
     async def process_message_async(self, user_input: str) -> None:
         """Process a user message asynchronously to keep UI unblocked.
