@@ -603,34 +603,7 @@ class OpenHandsApp(App):
         else:
             self.exit()
 
-    def action_toggle_mcp_panel(self) -> None:
-        """Action to toggle the MCP side panel."""
-        content_area = self.query_one("#content_area", Horizontal)
-
-        if self.mcp_panel is None:
-            # Create and mount the MCP panel
-            agent = None
-            try:
-                # Load agent directly from AgentStore (faster than waiting for conversation)
-                from openhands_cli.tui.settings.store import AgentStore
-                agent_store = AgentStore()
-                agent = agent_store.load()
-            except Exception:
-                # Fallback to getting agent from conversation if available
-                if (
-                    self.conversation_runner
-                    and self.conversation_runner.conversation
-                    and hasattr(self.conversation_runner.conversation, "agent")
-                ):
-                    agent = self.conversation_runner.conversation.agent  # type: ignore[attr-defined]
-
-            self.mcp_panel = MCPSidePanel(agent=agent)
-            content_area.mount(self.mcp_panel)
-        else:
-            # Remove the existing panel
-            self.mcp_panel.remove()
-            self.mcp_panel = None
-
+<<<<<<< HEAD
     def action_toggle_input_mode(self) -> None:
         """Action to handle Ctrl+M key binding - toggle between Input and TextArea."""
         self._toggle_input_mode()
@@ -697,6 +670,35 @@ class OpenHandsApp(App):
         else:
             # Handle regular messages with conversation runner
             await self._handle_user_message(content)
+=======
+    def action_toggle_mcp_panel(self) -> None:
+        """Action to toggle the MCP side panel."""
+        content_area = self.query_one("#content_area", Horizontal)
+
+        if self.mcp_panel is None:
+            # Create and mount the MCP panel
+            agent = None
+            try:
+                # Load agent directly from AgentStore (faster than waiting for conversation)
+                from openhands_cli.tui.settings.store import AgentStore
+                agent_store = AgentStore()
+                agent = agent_store.load()
+            except Exception:
+                # Fallback to getting agent from conversation if available
+                if (
+                    self.conversation_runner
+                    and self.conversation_runner.conversation
+                    and hasattr(self.conversation_runner.conversation, "agent")
+                ):
+                    agent = self.conversation_runner.conversation.agent  # type: ignore[attr-defined]
+
+            self.mcp_panel = MCPSidePanel(agent=agent)
+            content_area.mount(self.mcp_panel)
+        else:
+            # Remove the existing panel
+            self.mcp_panel.remove()
+            self.mcp_panel = None
+>>>>>>> b7b14b7cea8f0515d0598d446d285f2506494d78
 
 
 def main():
