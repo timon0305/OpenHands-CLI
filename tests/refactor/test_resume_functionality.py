@@ -15,7 +15,7 @@ class TestResumeFunctionality:
         test_uuid = uuid.uuid4()
         app = OpenHandsApp(resume_conversation_id=test_uuid)
 
-        assert app.resume_conversation_id == test_uuid
+        assert app.conversation_id == test_uuid
 
     def test_textual_app_main_accepts_resume_parameter(self):
         """Test that main function accepts resume_conversation_id parameter."""
@@ -27,35 +27,20 @@ class TestResumeFunctionality:
         ):
             from openhands_cli.refactor.textual_app import main
 
-            main(resume_conversation_id=test_uuid)
+            main(resume_conversation_id=str(test_uuid))
 
             # Verify OpenHandsApp was initialized with the resume_conversation_id
-            mock_init.assert_called_once_with(resume_conversation_id=test_uuid)
+            mock_init.assert_called_once_with(resume_conversation_id=str(test_uuid))
             mock_run.assert_called_once()
 
     def test_conversation_runner_initialize_with_conversation_id(self):
         """Test that ConversationRunner can initialize with a conversation ID."""
         test_uuid = uuid.uuid4()
 
-        with patch(
-            "openhands_cli.refactor.conversation_runner.setup_conversation"
-        ) as mock_setup:
-            mock_conversation = MagicMock()
-            mock_setup.return_value = mock_conversation
+        runner = ConversationRunner(test_uuid)
 
-            runner = ConversationRunner()
-            runner.initialize_conversation(conversation_id=test_uuid)
-
-            # Verify setup_conversation was called with the correct conversation_id
-            mock_setup.assert_called_once()
-            call_args = mock_setup.call_args
-            assert (
-                call_args[0][0] == test_uuid
-            )  # First positional argument should be conversation_id
-
-            # Verify the conversation was set
-            assert runner.conversation == mock_conversation
-            assert runner.conversation_id == test_uuid
+        # Verify the conversation_id was set correctly
+        assert runner.conversation_id == test_uuid
 
     def test_simple_main_passes_resume_to_textual_main(self):
         """Test that simple_main.py passes resume argument to textual main."""

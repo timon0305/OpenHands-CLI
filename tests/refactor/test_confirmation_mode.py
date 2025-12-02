@@ -1,5 +1,6 @@
 """Tests for confirmation mode functionality in the refactored UI."""
 
+import uuid
 from unittest.mock import MagicMock, patch
 
 from openhands.sdk.security.confirmation_policy import ConfirmRisky
@@ -16,23 +17,23 @@ class TestConversationRunner:
 
     def test_initialization(self):
         """Test that the runner initializes correctly."""
-        runner = ConversationRunner()
+        conversation_id = uuid.uuid4()
+        runner = ConversationRunner(conversation_id)
 
         assert runner.conversation is None
-        assert runner.conversation_id is None
+        assert runner.conversation_id == conversation_id
         assert runner.is_confirmation_mode_active is False
         assert runner.is_running is False
 
     def test_toggle_confirmation_mode(self):
         """Test that confirmation mode can be toggled."""
-        runner = ConversationRunner()
+        conversation_id = uuid.uuid4()
+        runner = ConversationRunner(conversation_id)
 
         # Initially disabled
         assert runner.is_confirmation_mode_active is False
 
         # Set a conversation_id so setup_conversation will be called
-        import uuid
-
         runner.conversation_id = uuid.uuid4()
 
         # Mock the setup_conversation to avoid actual conversation setup
@@ -169,7 +170,8 @@ class TestConfirmationIntegration:
 
     def test_reject_creates_user_reject_observation(self):
         """Test that rejecting actions creates UserRejectObservation events."""
-        runner = ConversationRunner()
+        conversation_id = uuid.uuid4()
+        runner = ConversationRunner(conversation_id)
 
         # Mock conversation with reject_pending_actions method
         mock_conversation = MagicMock()
@@ -201,7 +203,8 @@ class TestConfirmationIntegration:
 
     def test_defer_pauses_conversation(self):
         """Test that deferring actions pauses the conversation."""
-        runner = ConversationRunner()
+        conversation_id = uuid.uuid4()
+        runner = ConversationRunner(conversation_id)
 
         # Mock conversation with pause method
         mock_conversation = MagicMock()
