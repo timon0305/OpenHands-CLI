@@ -163,13 +163,18 @@ class SettingsScreen(ModalScreen):
     }
     """
 
-    def __init__(self, **kwargs):
-        """Initialize the settings screen."""
+    def __init__(self, is_initial_setup: bool = False, **kwargs):
+        """Initialize the settings screen.
+        
+        Args:
+            is_initial_setup: True if this is the initial setup for a new user
+        """
         super().__init__(**kwargs)
         self.agent_store = AgentStore()
         self.current_agent = None
         self.is_advanced_mode = False
         self.message_widget = None
+        self.is_initial_setup = is_initial_setup
 
     def compose(self) -> ComposeResult:
         """Create the settings form."""
@@ -513,10 +518,23 @@ class SettingsScreen(ModalScreen):
         if event.button.id == "save_button":
             self._save_settings()
         elif event.button.id == "cancel_button":
-            self._close_screen(success=False)
+            self._handle_cancel()
 
     def action_cancel(self) -> None:
         """Handle escape key to cancel settings."""
+        self._handle_cancel()
+
+    def _handle_cancel(self) -> None:
+        """Handle cancel action - check if this is initial setup."""
+        if self.is_initial_setup:
+            # Check if there are any existing settings
+            existing_agent = self.agent_store.load()
+            if existing_agent is None:
+                # No existing settings and this is initial setup - return False to trigger exit modal
+                self._close_screen(success=False)
+                return
+        
+        # Normal cancel behavior - just close the screen
         self._close_screen(success=False)
 
     def _save_settings(self) -> None:

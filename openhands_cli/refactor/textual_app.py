@@ -286,6 +286,41 @@ class OpenHandsApp(App):
 
     def on_mount(self) -> None:
         """Called when app starts."""
+        # Check if user has existing settings
+        from openhands_cli.tui.settings.store import AgentStore
+        
+        agent_store = AgentStore()
+        existing_agent = agent_store.load()
+        
+        if existing_agent is None:
+            # No existing settings - show settings screen first
+            self._show_initial_settings()
+            return
+        
+        # User has settings - proceed with normal startup
+        self._initialize_main_ui()
+
+    def _show_initial_settings(self) -> None:
+        """Show settings screen for first-time users."""
+        settings_screen = SettingsScreen(is_initial_setup=True)
+        self.push_screen(settings_screen, self._handle_initial_settings_result)
+
+    def _handle_initial_settings_result(self, result) -> None:
+        """Handle the result from the initial settings screen."""
+        if result:
+            # Settings were saved successfully - initialize main UI
+            self._initialize_main_ui()
+            self.notify(
+                "Settings saved successfully! Welcome to OpenHands CLI!", 
+                severity="information", 
+                timeout=3.0
+            )
+        else:
+            # Settings were cancelled and no existing settings exist - show exit modal
+            self.push_screen(ExitConfirmationModal())
+
+    def _initialize_main_ui(self) -> None:
+        """Initialize the main UI components."""
         # Get structured splash content
         splash_content = get_splash_content(theme=OPENHANDS_THEME)
 
