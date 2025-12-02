@@ -16,50 +16,7 @@ from openhands_cli.refactor.core.theme import OPENHANDS_THEME
 class MCPSidePanel(Vertical):
     """Side panel widget that displays MCP server information."""
 
-    DEFAULT_CSS = """
-    MCPSidePanel {
-        width: 40;
-        height: 100%;
-        background: $surface;
-        border-left: solid $secondary;
-        padding: 1;
-        dock: right;
-    }
-
-    .mcp-header {
-        color: $primary;
-        text-style: bold;
-        margin-bottom: 1;
-    }
-
-    .mcp-section {
-        margin-bottom: 1;
-    }
-
-    .mcp-server-name {
-        color: $primary;
-        text-style: bold;
-    }
-
-    .mcp-server-detail {
-        color: $foreground;
-        margin-left: 2;
-    }
-
-    .mcp-status {
-        color: $accent;
-        margin-bottom: 1;
-    }
-
-    .mcp-no-servers {
-        color: $warning;
-        text-style: italic;
-    }
-
-    .mcp-error {
-        color: $error;
-    }
-    """
+    CSS_PATH = "mcp_side_panel.tcss"
 
     def __init__(self, agent: Agent | None = None, **kwargs):
         """Initialize the MCP side panel.

@@ -83,45 +83,7 @@ class ConfirmationSidePanel(Container):
     Uses a dashed border for visual separation.
     """
 
-    DEFAULT_CSS = """
-    ConfirmationSidePanel {
-        width: 40%;
-        height: 100%;
-        border-left: dashed $secondary;
-        background: $surface;
-        padding: 1;
-        margin-left: 1;
-    }
-
-    .confirmation-header {
-        color: $primary;
-        text-style: bold;
-        margin-bottom: 1;
-    }
-
-    .actions-container {
-        height: auto;
-        margin-bottom: 1;
-    }
-
-    .action-item {
-        color: $foreground;
-        margin-bottom: 1;
-        padding: 0 1;
-        background: $background;
-        border: solid $secondary;
-    }
-
-    .button-container {
-        height: auto;
-        align: center middle;
-    }
-
-    .button-container Button {
-        margin: 0 1;
-        min-width: 12;
-    }
-    """
+    CSS_PATH = "confirmation_panel.tcss"
 
     def __init__(
         self,

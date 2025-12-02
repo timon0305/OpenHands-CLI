@@ -1,0 +1,39 @@
+/* Confirmation Side Panel Styles */
+
+ConfirmationSidePanel {
+    width: 40%;
+    height: 100%;
+    border-left: dashed $secondary;
+    background: $surface;
+    padding: 1;
+    margin-left: 1;
+}
+
+.confirmation-header {
+    color: $primary;
+    text-style: bold;
+    margin-bottom: 1;
+}
+
+.actions-container {
+    height: auto;
+    margin-bottom: 1;
+}
+
+.action-item {
+    color: $foreground;
+    margin-bottom: 1;
+    padding: 0 1;
+    background: $background;
+    border: solid $secondary;
+}
+
+.button-container {
+    height: auto;
+    align: center middle;
+}
+
+.button-container Button {
+    margin: 0 1;
+    min-width: 12;
+}
