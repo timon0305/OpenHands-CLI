@@ -642,15 +642,12 @@ class OpenHandsApp(App):
     def action_open_settings(self) -> None:
         """Action to open the settings screen."""
         # Check if conversation is running
-        if (
-            self.conversation_runner
-            and self.conversation_runner.is_running
-        ):
+        if self.conversation_runner and self.conversation_runner.is_running:
             self.notify(
                 "Settings are not available while a conversation is running. "
                 "Please wait for the current conversation to complete.",
                 severity="warning",
-                timeout=5.0
+                timeout=5.0,
             )
             return
 
@@ -663,20 +660,19 @@ class OpenHandsApp(App):
         if result:
             # Settings were saved successfully - reload the agent
             try:
-                from openhands_cli.refactor.agent_store import AgentStore
+                from openhands_cli.tui.settings.store import AgentStore
+
                 agent_store = AgentStore()
                 self.agent = agent_store.load()
-                
+
                 self.notify(
-                    "Settings saved successfully!",
-                    severity="information",
-                    timeout=3.0
+                    "Settings saved successfully!", severity="information", timeout=3.0
                 )
             except Exception as e:
                 self.notify(
                     f"Settings saved but failed to reload agent: {str(e)}",
                     severity="warning",
-                    timeout=5.0
+                    timeout=5.0,
                 )
 
     def action_toggle_input_mode(self) -> None:
