@@ -21,9 +21,7 @@ from textual.widgets import Footer, Input, Static
 from openhands_cli.locations import WORK_DIR
 from openhands_cli.refactor.autocomplete import EnhancedAutoComplete
 from openhands_cli.refactor.commands import COMMANDS, is_valid_command, show_help
-from openhands_cli.refactor.confirmation_conversation_runner import (
-    ConfirmationConversationRunner,
-)
+from openhands_cli.refactor.conversation_runner import ConversationRunner
 from openhands_cli.refactor.confirmation_panel import ConfirmationSidePanel
 from openhands_cli.refactor.exit_modal import ExitConfirmationModal
 from openhands_cli.refactor.non_clickable_collapsible import NonClickableCollapsible
@@ -276,7 +274,7 @@ class OpenHandsApp(App):
         # Initialize conversation runner with visualizer that can add widgets
         visualizer = TextualVisualizer(main_display, self)
 
-        self.conversation_runner = ConfirmationConversationRunner(visualizer)
+        self.conversation_runner = ConversationRunner(visualizer)
 
         # Set up confirmation callback
         self.conversation_runner.set_confirmation_callback(

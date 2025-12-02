@@ -209,7 +209,7 @@ class TestOpenHandsApp:
         assert widget_content.startswith("> ")
 
     @mock.patch("openhands_cli.refactor.textual_app.get_welcome_message")
-    @mock.patch("openhands_cli.refactor.textual_app.MinimalConversationRunner")
+    @mock.patch("openhands_cli.refactor.textual_app.ConversationRunner")
     async def test_input_functionality_integration(
         self, mock_runner_class, mock_welcome
     ):

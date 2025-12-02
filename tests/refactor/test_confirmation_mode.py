@@ -2,9 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 
-from openhands_cli.refactor.confirmation_conversation_runner import (
-    ConfirmationConversationRunner,
-)
+from openhands_cli.refactor.conversation_runner import ConversationRunner
 from openhands_cli.refactor.confirmation_panel import (
     ConfirmationPanel,
 )
@@ -12,12 +10,12 @@ from openhands_cli.refactor.textual_app import OpenHandsApp
 from openhands_cli.user_actions.types import UserConfirmation
 
 
-class TestConfirmationConversationRunner:
-    """Tests for the ConfirmationConversationRunner."""
+class TestConversationRunner:
+    """Tests for the ConversationRunner."""
 
     def test_initialization(self):
         """Test that the runner initializes correctly."""
-        runner = ConfirmationConversationRunner()
+        runner = ConversationRunner()
 
         assert runner.conversation is None
         assert runner.conversation_id is None
@@ -26,7 +24,7 @@ class TestConfirmationConversationRunner:
 
     def test_toggle_confirmation_mode(self):
         """Test that confirmation mode can be toggled."""
-        runner = ConfirmationConversationRunner()
+        runner = ConversationRunner()
 
         # Initially disabled
         assert runner.is_confirmation_mode_active is False
@@ -38,7 +36,7 @@ class TestConfirmationConversationRunner:
 
         # Mock the setup_conversation to avoid actual conversation setup
         with patch(
-            "openhands_cli.refactor.confirmation_conversation_runner.setup_conversation"
+            "openhands_cli.refactor.conversation_runner.setup_conversation"
         ) as mock_setup:
             mock_conversation = MagicMock()
             mock_setup.return_value = mock_conversation
@@ -167,7 +165,7 @@ class TestConfirmationIntegration:
 
     def test_reject_creates_user_reject_observation(self):
         """Test that rejecting actions creates UserRejectObservation events."""
-        runner = ConfirmationConversationRunner()
+        runner = ConversationRunner()
         
         # Mock conversation with reject_pending_actions method
         mock_conversation = MagicMock()
@@ -199,7 +197,7 @@ class TestConfirmationIntegration:
 
     def test_defer_pauses_conversation(self):
         """Test that deferring actions pauses the conversation."""
-        runner = ConfirmationConversationRunner()
+        runner = ConversationRunner()
         
         # Mock conversation with pause method
         mock_conversation = MagicMock()
