@@ -60,7 +60,7 @@ def main() -> None:
                 print("Goodbye! 👋")
                 print(f"Conversation ID: {conversation_id.hex}")
                 print(
-                    f"Hint:</grey> run openhands --resume {conversation_id} "
+                    f"Hint: run openhands --resume {conversation_id} "
                     "to resume this conversation."
                 )
 
