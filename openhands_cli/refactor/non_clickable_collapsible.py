@@ -4,7 +4,7 @@ This module provides a Collapsible widget that cannot be toggled by clicking,
 only through programmatic control (like Ctrl+E). It also has a dimmer gray background.
 """
 
-from typing import ClassVar
+from typing import Any, ClassVar
 
 from textual import events
 from textual.app import ComposeResult
@@ -227,7 +227,7 @@ class NonClickableCollapsible(Widget):
 
     def __init__(
         self,
-        content: str,
+        content: Any,
         *,
         title: str = "Toggle",
         collapsed: bool = True,
@@ -242,7 +242,7 @@ class NonClickableCollapsible(Widget):
         """Initialize a NonClickableCollapsible widget.
 
         Args:
-            content: String content that will be collapsed/expanded.
+            content: Content that will be collapsed/expanded (converted to string).
             title: Title of the collapsed/expanded contents.
             collapsed: Default status of the contents.
             collapsed_symbol: Collapsed symbol before the title.
@@ -284,9 +284,7 @@ class NonClickableCollapsible(Widget):
         content_text = self._content_string
         if content_text:
             try:
-                import pyperclip
-
-                pyperclip.copy(content_text)
+                self.app.copy_to_clipboard(content_text)
                 self.app.notify(
                     "Content copied to clipboard!", title="Copy Success", timeout=2
                 )

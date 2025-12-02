@@ -54,7 +54,7 @@ Line 3 with special chars: !@#$%^&*()"""
         self.assertEqual(component._content_string, test_content)
 
     def test_copy_to_clipboard_action(self):
-        """Test that copy action calls pyperclip.copy with correct content."""
+        """Test that copy action calls app.copy_to_clipboard with correct content."""
         test_content = "Content to be copied"
         component = NonClickableCollapsible(
             content=test_content,
@@ -78,7 +78,7 @@ Line 3 with special chars: !@#$%^&*()"""
             # Simulate the copy action by calling the event handler directly
             component._on_non_clickable_collapsible_title_copy_requested(mock_event)
 
-            # Verify the app's copy_to_clipboard was called with the correct content
+            # Verify app.copy_to_clipboard was called with the correct content
             mock_app.copy_to_clipboard.assert_called_once_with(test_content)
 
             # Verify a notification was posted
