@@ -6,8 +6,6 @@ This replaces the Rich-based CLIVisualizer with a Textual-compatible version.
 import threading
 from typing import TYPE_CHECKING
 
-from textual.widgets import Static
-
 from openhands.sdk.conversation.visualizer.base import ConversationVisualizerBase
 from openhands.sdk.event import (
     ActionEvent,
@@ -232,32 +230,30 @@ class TextualVisualizer(ConversationVisualizerBase):
             else:
                 title = self._extract_meaningful_title(event, "Agent Action")
 
-            # Create content widget with metrics subtitle if available
-            content_widget = Static(content)
+            # Create content string with metrics subtitle if available
+            content_string = str(content)
             metrics = self._format_metrics_subtitle()
             if metrics:
-                content_widget = Static(f"{content}\n\n{metrics}")
+                content_string = f"{content_string}\n\n{metrics}"
 
             return NonClickableCollapsible(
-                content_widget,
+                content_string,
                 title=title,
                 collapsed=True,  # Start collapsed by default
                 border_color=_get_event_border_color(event),
             )
         elif isinstance(event, ObservationEvent):
             title = self._extract_meaningful_title(event, "Observation")
-            content_widget = Static(content)
             return NonClickableCollapsible(
-                content_widget,
+                str(content),
                 title=title,
                 collapsed=True,  # Start collapsed for observations
                 border_color=_get_event_border_color(event),
             )
         elif isinstance(event, UserRejectObservation):
             title = self._extract_meaningful_title(event, "User Rejected Action")
-            content_widget = Static(content)
             return NonClickableCollapsible(
-                content_widget,
+                str(content),
                 title=title,
                 collapsed=True,  # Start collapsed by default
                 border_color=_get_event_border_color(event),
@@ -276,49 +272,48 @@ class TextualVisualizer(ConversationVisualizerBase):
             else:
                 title = self._extract_meaningful_title(event, "Agent Message")
 
-            # Create content widget with metrics if available
-            content_widget = Static(content)
+            # Create content string with metrics if available
+            content_string = str(content)
             metrics = self._format_metrics_subtitle()
             if metrics and event.llm_message.role == "assistant":
-                content_widget = Static(f"{content}\n\n{metrics}")
+                content_string = f"{content_string}\n\n{metrics}"
 
             return NonClickableCollapsible(
-                content_widget,
+                content_string,
                 title=title,
                 collapsed=True,  # Start collapsed by default
                 border_color=_get_event_border_color(event),
             )
         elif isinstance(event, AgentErrorEvent):
             title = self._extract_meaningful_title(event, "Agent Error")
-            content_widget = Static(content)
+            content_string = str(content)
             metrics = self._format_metrics_subtitle()
             if metrics:
-                content_widget = Static(f"{content}\n\n{metrics}")
+                content_string = f"{content_string}\n\n{metrics}"
 
             return NonClickableCollapsible(
-                content_widget,
+                content_string,
                 title=title,
                 collapsed=True,  # Start collapsed by default
                 border_color=_get_event_border_color(event),
             )
         elif isinstance(event, PauseEvent):
             title = self._extract_meaningful_title(event, "User Paused")
-            content_widget = Static(content)
             return NonClickableCollapsible(
-                content_widget,
+                str(content),
                 title=title,
                 collapsed=True,  # Start collapsed for pauses
                 border_color=_get_event_border_color(event),
             )
         elif isinstance(event, Condensation):
             title = self._extract_meaningful_title(event, "Condensation")
-            content_widget = Static(content)
+            content_string = str(content)
             metrics = self._format_metrics_subtitle()
             if metrics:
-                content_widget = Static(f"{content}\n\n{metrics}")
+                content_string = f"{content_string}\n\n{metrics}"
 
             return NonClickableCollapsible(
-                content_widget,
+                content_string,
                 title=title,
                 collapsed=True,  # Start collapsed for condensations
                 border_color=_get_event_border_color(event),
@@ -328,9 +323,9 @@ class TextualVisualizer(ConversationVisualizerBase):
             title = self._extract_meaningful_title(
                 event, f"UNKNOWN Event: {event.__class__.__name__}"
             )
-            content_widget = Static(f"{content}\n\nSource: {event.source}")
+            content_string = f"{content}\n\nSource: {event.source}"
             return NonClickableCollapsible(
-                content_widget,
+                content_string,
                 title=title,
                 collapsed=True,  # Start collapsed for unknown events
                 border_color=_get_event_border_color(event),

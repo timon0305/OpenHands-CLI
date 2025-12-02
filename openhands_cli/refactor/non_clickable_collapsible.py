@@ -227,7 +227,8 @@ class NonClickableCollapsible(Widget):
 
     def __init__(
         self,
-        *children: Widget,
+        content: str,
+        *,
         title: str = "Toggle",
         collapsed: bool = True,
         collapsed_symbol: str = "▶",
@@ -241,7 +242,7 @@ class NonClickableCollapsible(Widget):
         """Initialize a NonClickableCollapsible widget.
 
         Args:
-            *children: Contents that will be collapsed/expanded.
+            content: String content that will be collapsed/expanded.
             title: Title of the collapsed/expanded contents.
             collapsed: Default status of the contents.
             collapsed_symbol: Collapsed symbol before the title.
@@ -260,7 +261,12 @@ class NonClickableCollapsible(Widget):
             collapsed=collapsed,
         )
         self.title = title
-        self._contents_list: list[Widget] = list(children)
+        self._content_string = str(
+            content
+        )  # Store the original content as string for copying
+        self._content_widget = Static(
+            self._content_string
+        )  # Create Static widget internally
         self.collapsed = collapsed
         self.styles.border_left = ("thick", border_color)
 
@@ -275,7 +281,7 @@ class NonClickableCollapsible(Widget):
     ) -> None:
         """Handle copy request from the title."""
         event.stop()
-        content_text = self._extract_content_text()
+        content_text = self._content_string
         if content_text:
             try:
                 self.app.copy_to_clipboard(content_text)
@@ -322,73 +328,7 @@ class NonClickableCollapsible(Widget):
     def compose(self) -> ComposeResult:
         yield self._title
         with self.Contents():
-            yield from self._contents_list
-
-    def compose_add_child(self, widget: Widget) -> None:
-        """When using the context manager compose syntax, we want to attach nodes.
-
-        Args:
-            widget: A Widget to add.
-        """
-        self._contents_list.append(widget)
+            yield self._content_widget
 
     def _watch_title(self, title: str) -> None:
         self._title.label = title
-
-    def _extract_content_text(self) -> str:
-        """Extract plain text content from the collapsible body."""
-        content_parts = []
-
-        # Iterate through all content widgets
-        for widget in self._contents_list:
-            try:
-                # Handle Static widgets specially
-                if widget.__class__.__name__ == "Static":
-                    # Try to get the content attribute (available in Textual Static)
-                    if (
-                        hasattr(widget, "content")
-                        and getattr(widget, "content") is not None
-                    ):
-                        content = getattr(widget, "content")
-                        if hasattr(content, "plain"):
-                            # Rich Text objects have a .plain property
-                            content_parts.append(str(getattr(content, "plain")))
-                        else:
-                            # Fallback to string representation
-                            content_parts.append(str(content))
-                    # Try to get the renderable content
-                    elif (
-                        hasattr(widget, "renderable")
-                        and getattr(widget, "renderable") is not None
-                    ):
-                        renderable = getattr(widget, "renderable")
-                        if hasattr(renderable, "plain"):
-                            # Rich Text objects have a .plain property
-                            content_parts.append(str(getattr(renderable, "plain")))
-                        else:
-                            # Fallback to string representation
-                            content_parts.append(str(renderable))
-                    else:
-                        # Last resort: use widget string representation
-                        content_parts.append(str(widget))
-                # Try custom content extraction method
-                elif hasattr(widget, "get_content_text"):
-                    content_text = getattr(widget, "get_content_text")()
-                    content_parts.append(str(content_text))
-                # Try to get renderable content (for other widgets)
-                elif hasattr(widget, "renderable"):
-                    renderable = getattr(widget, "renderable")
-                    if hasattr(renderable, "plain"):
-                        # Rich Text objects have a .plain property
-                        content_parts.append(str(getattr(renderable, "plain")))
-                    else:
-                        # Fallback to string representation
-                        content_parts.append(str(renderable))
-                else:
-                    # Fallback: try to get text representation
-                    content_parts.append(str(widget))
-            except Exception:
-                # If all else fails, use string representation
-                content_parts.append(str(widget))
-
-        return "\n".join(content_parts).strip()
