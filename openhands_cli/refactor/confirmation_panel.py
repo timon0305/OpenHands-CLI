@@ -79,7 +79,7 @@ class ConfirmationPanel(Container):
 
 class ConfirmationSidePanel(Container):
     """A container that shows the confirmation panel on the right side.
-    
+
     Uses a dashed border for visual separation.
     """
 

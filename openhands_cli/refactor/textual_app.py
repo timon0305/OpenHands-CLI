@@ -21,9 +21,11 @@ from textual.widgets import Footer, Input, Static
 from openhands_cli.locations import WORK_DIR
 from openhands_cli.refactor.autocomplete import EnhancedAutoComplete
 from openhands_cli.refactor.commands import COMMANDS, is_valid_command, show_help
-from openhands_cli.refactor.conversation_runner import ConversationRunner
 from openhands_cli.refactor.confirmation_panel import ConfirmationSidePanel
+from openhands_cli.refactor.conversation_runner import ConversationRunner
 from openhands_cli.refactor.exit_modal import ExitConfirmationModal
+from openhands_cli.refactor.mcp_command_provider import MCPCommandProvider
+from openhands_cli.refactor.mcp_side_panel import MCPSidePanel
 from openhands_cli.refactor.non_clickable_collapsible import NonClickableCollapsible
 from openhands_cli.refactor.richlog_visualizer import TextualVisualizer
 from openhands_cli.refactor.splash import get_splash_content
@@ -39,7 +41,11 @@ class OpenHandsApp(App):
         ("ctrl+q", "request_quit", "Quit the application"),
         ("f2", "expand_all", "Expand the cells"),
         ("escape", "pause_conversation", "Pause the conversation"),
+        ("ctrl+p", "command_palette", "Open command palette"),
     ]
+
+    # Command providers for the command palette
+    COMMANDS: ClassVar = {MCPCommandProvider}
 
     def __init__(self, exit_confirmation: bool = True, **kwargs):
         """Initialize the app with custom OpenHands theme.
@@ -62,6 +68,9 @@ class OpenHandsApp(App):
 
         # Confirmation panel tracking
         self.confirmation_panel: ConfirmationSidePanel | None = None
+
+        # MCP panel tracking
+        self.mcp_panel: MCPSidePanel | None = None
 
         # Register the custom theme
         self.register_theme(OPENHANDS_THEME)
@@ -558,6 +567,34 @@ class OpenHandsApp(App):
             self.push_screen(ExitConfirmationModal())
         else:
             self.exit()
+
+    def action_toggle_mcp_panel(self) -> None:
+        """Action to toggle the MCP side panel."""
+        content_area = self.query_one("#content_area", Horizontal)
+
+        if self.mcp_panel is None:
+            # Create and mount the MCP panel
+            agent = None
+            try:
+                # Load agent directly from AgentStore (faster than waiting for conversation)
+                from openhands_cli.tui.settings.store import AgentStore
+                agent_store = AgentStore()
+                agent = agent_store.load()
+            except Exception:
+                # Fallback to getting agent from conversation if available
+                if (
+                    self.conversation_runner
+                    and self.conversation_runner.conversation
+                    and hasattr(self.conversation_runner.conversation, "agent")
+                ):
+                    agent = self.conversation_runner.conversation.agent  # type: ignore[attr-defined]
+
+            self.mcp_panel = MCPSidePanel(agent=agent)
+            content_area.mount(self.mcp_panel)
+        else:
+            # Remove the existing panel
+            self.mcp_panel.remove()
+            self.mcp_panel = None
 
 
 def main():

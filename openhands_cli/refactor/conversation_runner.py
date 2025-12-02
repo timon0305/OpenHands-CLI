@@ -214,9 +214,7 @@ class ConversationRunner:
         # Handle the user's decision
         if decision == UserConfirmation.REJECT:
             # Reject pending actions - this creates UserRejectObservation events
-            self.conversation.reject_pending_actions(
-                "User rejected the actions"
-            )
+            self.conversation.reject_pending_actions("User rejected the actions")
         elif decision == UserConfirmation.DEFER:
             # Pause the conversation for later resumption
             self.conversation.pause()
