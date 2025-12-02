@@ -284,7 +284,9 @@ class NonClickableCollapsible(Widget):
         content_text = self._content_string
         if content_text:
             try:
-                self.app.copy_to_clipboard(content_text)
+                import pyperclip
+
+                pyperclip.copy(content_text)
                 self.app.notify(
                     "Content copied to clipboard!", title="Copy Success", timeout=2
                 )
