@@ -29,6 +29,7 @@ from openhands_cli.refactor.exit_modal import ExitConfirmationModal
 from openhands_cli.refactor.mcp_side_panel import MCPSidePanel
 from openhands_cli.refactor.non_clickable_collapsible import NonClickableCollapsible
 from openhands_cli.refactor.richlog_visualizer import TextualVisualizer
+from openhands_cli.refactor.settings_screen import SettingsScreen
 from openhands_cli.refactor.splash import get_splash_content
 from openhands_cli.refactor.theme import OPENHANDS_THEME
 from openhands_cli.user_actions.types import UserConfirmation
@@ -278,6 +279,9 @@ class OpenHandsApp(App):
         yield from super().get_system_commands(screen)
         yield SystemCommand(
             "MCP", "View MCP configurations", self.action_toggle_mcp_panel
+        )
+        yield SystemCommand(
+            "AGENT SETTINGS", "Configure agent settings", self.action_open_settings
         )
 
     def on_mount(self) -> None:
@@ -634,6 +638,46 @@ class OpenHandsApp(App):
             # Remove the existing panel
             self.mcp_panel.remove()
             self.mcp_panel = None
+
+    def action_open_settings(self) -> None:
+        """Action to open the settings screen."""
+        # Check if conversation is running
+        if (
+            self.conversation_runner
+            and self.conversation_runner.is_running
+        ):
+            self.notify(
+                "Settings are not available while a conversation is running. "
+                "Please wait for the current conversation to complete.",
+                severity="warning",
+                timeout=5.0
+            )
+            return
+
+        # Open the settings screen
+        settings_screen = SettingsScreen()
+        self.push_screen(settings_screen, self._handle_settings_result)
+
+    def _handle_settings_result(self, result) -> None:
+        """Handle the result from the settings screen."""
+        if result:
+            # Settings were saved successfully - reload the agent
+            try:
+                from openhands_cli.refactor.agent_store import AgentStore
+                agent_store = AgentStore()
+                self.agent = agent_store.load()
+                
+                self.notify(
+                    "Settings saved successfully!",
+                    severity="information",
+                    timeout=3.0
+                )
+            except Exception as e:
+                self.notify(
+                    f"Settings saved but failed to reload agent: {str(e)}",
+                    severity="warning",
+                    timeout=5.0
+                )
 
     def action_toggle_input_mode(self) -> None:
         """Action to toggle between Input and TextArea."""
