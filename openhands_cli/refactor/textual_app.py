@@ -390,7 +390,7 @@ class OpenHandsApp(App):
 
     def _process_queued_inputs(self) -> None:
         """Process any queued inputs from --task or --file arguments.
-        
+
         Currently processes only the first queued input immediately.
         In the future, this could be extended to process multiple instructions
         from the queue one by one as the agent completes each task.

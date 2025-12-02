@@ -7,8 +7,8 @@ from collections.abc import Callable
 from openhands.sdk import BaseConversation, Message, TextContent
 from openhands.sdk.conversation.state import ConversationExecutionStatus
 from openhands.sdk.security.confirmation_policy import (
+    AlwaysConfirm,
     ConfirmationPolicyBase,
-    ConfirmRisky,
     NeverConfirm,
 )
 from openhands_cli.refactor.richlog_visualizer import TextualVisualizer
@@ -31,7 +31,9 @@ class ConversationRunner:
         self.conversation_id: uuid.UUID = conversation_id
         self._running = False
         self.visualizer = visualizer
-        self._confirmation_mode_active = False
+        self._confirmation_mode_active = (
+            True  # Always start with security analyzer enabled
+        )
         self._confirmation_callback: Callable | None = None
 
     @property
@@ -45,7 +47,7 @@ class ConversationRunner:
 
         # Choose confirmation policy based on new state
         if new_confirmation_mode_state:
-            confirmation_policy = ConfirmRisky()
+            confirmation_policy = AlwaysConfirm()
         else:
             confirmation_policy = NeverConfirm()
 
@@ -94,12 +96,12 @@ class ConversationRunner:
 
         Args:
             include_security_analyzer: Whether to include security analyzer for
-                confirmation mode.
+                confirmation mode. Uses AlwaysConfirm policy when enabled.
         """
 
         # Choose confirmation policy based on security analyzer setting
         if include_security_analyzer:
-            confirmation_policy = ConfirmRisky()
+            confirmation_policy = AlwaysConfirm()
         else:
             confirmation_policy = NeverConfirm()
 

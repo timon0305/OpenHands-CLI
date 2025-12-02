@@ -3,7 +3,7 @@
 import uuid
 from unittest.mock import MagicMock, patch
 
-from openhands.sdk.security.confirmation_policy import ConfirmRisky
+from openhands.sdk.security.confirmation_policy import AlwaysConfirm
 from openhands_cli.refactor.confirmation_panel import (
     ConfirmationPanel,
 )
@@ -22,7 +22,7 @@ class TestConversationRunner:
 
         assert runner.conversation is None
         assert runner.conversation_id == conversation_id
-        assert runner.is_confirmation_mode_active is False
+        assert runner.is_confirmation_mode_active is True  # Now starts enabled
         assert runner.is_running is False
 
     def test_toggle_confirmation_mode(self):
@@ -30,32 +30,26 @@ class TestConversationRunner:
         conversation_id = uuid.uuid4()
         runner = ConversationRunner(conversation_id)
 
-        # Initially disabled
+        # Initially enabled (changed behavior)
+        assert runner.is_confirmation_mode_active is True
+
+        # Mock an existing conversation to test policy updates
+        mock_conversation = MagicMock()
+        runner.conversation = mock_conversation
+
+        # Toggle to disable (since it starts enabled now)
+        runner.toggle_confirmation_mode()
         assert runner.is_confirmation_mode_active is False
+        # Check that set_confirmation_policy was called with NeverConfirm
+        from openhands.sdk.security.confirmation_policy import NeverConfirm
 
-        # Set a conversation_id so setup_conversation will be called
-        runner.conversation_id = uuid.uuid4()
+        mock_conversation.set_confirmation_policy.assert_called_with(NeverConfirm())
 
-        # Mock the setup_conversation to avoid actual conversation setup
-        with patch(
-            "openhands_cli.refactor.conversation_runner.setup_conversation"
-        ) as mock_setup:
-            mock_conversation = MagicMock()
-            mock_setup.return_value = mock_conversation
-
-            # Toggle to enable
-            runner.toggle_confirmation_mode()
-            assert runner.is_confirmation_mode_active is True
-            # Check that setup_conversation was called with ConfirmRisky policy
-            mock_setup.assert_called_with(
-                runner.conversation_id,
-                confirmation_policy=ConfirmRisky(),
-                visualizer=None,
-            )
-
-            # Toggle to disable
-            runner.toggle_confirmation_mode()
-            assert runner.is_confirmation_mode_active is False
+        # Toggle to enable again
+        runner.toggle_confirmation_mode()
+        assert runner.is_confirmation_mode_active is True
+        # Check that set_confirmation_policy was called with AlwaysConfirm
+        mock_conversation.set_confirmation_policy.assert_called_with(AlwaysConfirm())
 
 
 class TestConfirmationPanel:
@@ -106,7 +100,7 @@ class TestOpenHandsAppConfirmation:
 
         # Mock the conversation runner
         mock_runner = MagicMock()
-        mock_runner.is_confirmation_mode_active = False
+        mock_runner.is_confirmation_mode_active = True  # Now starts enabled
         app.conversation_runner = mock_runner
 
         # Mock the main display
