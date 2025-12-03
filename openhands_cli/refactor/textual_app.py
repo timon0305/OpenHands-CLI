@@ -170,6 +170,22 @@ class OpenHandsApp(App):
         settings_screen = SettingsScreen(is_initial_setup=True)
         self.push_screen(settings_screen, self._handle_initial_settings_result)
 
+    def action_open_settings(self, is_inital_setup: bool = False) -> None:
+        """Action to open the settings screen."""
+        # Check if conversation is running
+        if self.conversation_runner and self.conversation_runner.is_running:
+            self.notify(
+                "Settings are not available while a conversation is running. "
+                "Please wait for the current conversation to complete.",
+                severity="warning",
+                timeout=5.0,
+            )
+            return
+
+        # Open the settings screen
+        settings_screen = SettingsScreen(is_inital_setup=is_inital_setup)
+        self.push_screen(settings_screen, settings_screen._handle_settings_result)
+
     def _handle_initial_settings_result(self, result) -> None:
         """Handle the result from the initial settings screen."""
         if result:
@@ -471,22 +487,6 @@ class OpenHandsApp(App):
             # Remove the existing panel
             self.mcp_panel.remove()
             self.mcp_panel = None
-
-    def action_open_settings(self, is_inital_setup: bool = False) -> None:
-        """Action to open the settings screen."""
-        # Check if conversation is running
-        if self.conversation_runner and self.conversation_runner.is_running:
-            self.notify(
-                "Settings are not available while a conversation is running. "
-                "Please wait for the current conversation to complete.",
-                severity="warning",
-                timeout=5.0,
-            )
-            return
-
-        # Open the settings screen
-        settings_screen = SettingsScreen(is_inital_setup=is_inital_setup)
-        self.push_screen(settings_screen, settings_screen._handle_settings_result)
 
 
 def main(
