@@ -15,11 +15,12 @@ import uuid
 from collections.abc import Iterable
 from typing import ClassVar
 
+from textual import getters, on
 from textual.app import App, ComposeResult, SystemCommand
 from textual.containers import Container, Horizontal, VerticalScroll
 from textual.screen import Screen
 from textual.timer import Timer
-from textual.widgets import Footer, Input, Static, TextArea
+from textual.widgets import Footer, Static
 
 from openhands.sdk.security.confirmation_policy import (
     AlwaysConfirm,
@@ -30,14 +31,14 @@ from openhands.sdk.security.confirmation_policy import (
 from openhands.sdk.security.risk import SecurityRisk
 from openhands_cli.locations import WORK_DIR
 from openhands_cli.refactor.content.splash import get_splash_content
-from openhands_cli.refactor.core.commands import COMMANDS, is_valid_command, show_help
+from openhands_cli.refactor.core.commands import is_valid_command, show_help
 from openhands_cli.refactor.core.conversation_runner import ConversationRunner
 from openhands_cli.refactor.core.theme import OPENHANDS_THEME
 from openhands_cli.refactor.modals.exit_modal import ExitConfirmationModal
 from openhands_cli.refactor.panels.confirmation_panel import ConfirmationSidePanel
 from openhands_cli.refactor.panels.mcp_side_panel import MCPSidePanel
 from openhands_cli.refactor.screens.settings_screen import SettingsScreen
-from openhands_cli.refactor.widgets.autocomplete import EnhancedAutoComplete
+from openhands_cli.refactor.widgets.input_field import InputField
 from openhands_cli.refactor.widgets.non_clickable_collapsible import (
     NonClickableCollapsible,
 )
@@ -56,6 +57,9 @@ class OpenHandsApp(App):
         ("escape", "pause_conversation", "Pause the conversation"),
         ("ctrl+q", "request_quit", "Quit the application"),
     ]
+
+    input_field: getters.query_one[InputField] = getters.query_one(InputField)
+    main_display: getters.query_one[VerticalScroll] = getters.query_one("#main_display")
 
     def __init__(
         self,
@@ -106,10 +110,6 @@ class OpenHandsApp(App):
         # MCP panel tracking
         self.mcp_panel: MCPSidePanel | None = None
 
-        # Input mode tracking
-        self.is_multiline_mode = False
-        self.stored_content = ""
-
         # Register the custom theme
         self.register_theme(OPENHANDS_THEME)
 
@@ -137,22 +137,9 @@ class OpenHandsApp(App):
 
         # Input area - docked to bottom
         with Container(id="input_area"):
-            text_input = Input(
-                placeholder=("Type your message, @mention a file, or / for commands"),
-                id="user_input",
+            yield InputField(
+                placeholder="Type your message, @mention a file, or / for commands"
             )
-            yield text_input
-
-            # TextArea for multi-line input (initially hidden)
-            text_area = TextArea(
-                id="user_textarea",
-                soft_wrap=True,
-                show_line_numbers=False,
-            )
-            yield text_area
-
-            # Add enhanced autocomplete for the input (commands and file paths)
-            yield EnhancedAutoComplete(text_input, command_candidates=COMMANDS)
 
             # Status line - shows work directory and timer (inside input area)
             yield Static(id="status_line")
@@ -234,11 +221,8 @@ class OpenHandsApp(App):
         else:
             update_notice_widget.display = False
 
-        # Get the main display container for the visualizer
-        main_display = self.query_one("#main_display", VerticalScroll)
-
         # Initialize conversation runner with visualizer that can add widgets
-        visualizer = TextualVisualizer(main_display, self)
+        visualizer = TextualVisualizer(self.main_display, self)
 
         self.conversation_runner = ConversationRunner(
             self.conversation_id,
@@ -254,9 +238,6 @@ class OpenHandsApp(App):
 
         # Initialize status line
         self.update_status_line()
-
-        # Focus the input widget
-        self.query_one("#user_input", Input).focus()
 
         # Process any queued inputs
         self._process_queued_inputs()
@@ -275,10 +256,9 @@ class OpenHandsApp(App):
         user_input = self.pending_inputs.pop(0)
 
         # Add the user message to the main display as a Static widget
-        main_display = self.query_one("#main_display", VerticalScroll)
         user_message_widget = Static(f"> {user_input}", classes="user-message")
-        main_display.mount(user_message_widget)
-        main_display.scroll_end(animate=False)
+        self.main_display.mount(user_message_widget)
+        self.main_display.scroll_end(animate=False)
 
         # Handle the message asynchronously
         asyncio.create_task(self._handle_user_message(user_input))
@@ -293,13 +273,14 @@ class OpenHandsApp(App):
 
         return work_dir
 
+    @on(InputField.ModeChanged)
     def update_status_line(self) -> None:
         """Update the status line with current information."""
         status_widget = self.query_one("#status_line", Static)
         work_dir = self.get_work_dir_display()
 
         # Add input mode indicator
-        if self.is_multiline_mode:
+        if self.input_field.is_multiline_mode:
             mode_indicator = " [Multi-line: Ctrl+J to submit]"
         else:
             mode_indicator = " [F1 for multi-line]"
@@ -341,17 +322,15 @@ class OpenHandsApp(App):
         self.conversation_start_time = None
         self.update_status_line()
 
-    async def on_input_submitted(self, event: Input.Submitted) -> None:
-        """Handle when user submits input."""
-        await self._handle_user_input(event.value)
-        event.input.value = ""
+    @on(InputField.Submitted)
+    async def handle_user_input(self, message: InputField.Submitted) -> None:
+        await self._handle_user_input(message.content)
 
     def _handle_command(self, command: str) -> None:
         """Handle command execution."""
-        main_display = self.query_one("#main_display", VerticalScroll)
 
         if command == "/help":
-            show_help(main_display)
+            show_help(self.main_display)
         elif command == "/confirm":
             self._handle_confirm_command()
         elif command == "/exit":
@@ -360,8 +339,8 @@ class OpenHandsApp(App):
             error_widget = Static(
                 f"Unknown command: {command}", classes="error-message"
             )
-            main_display.mount(error_widget)
-            main_display.scroll_end(animate=False)
+            self.main_display.mount(error_widget)
+            self.main_display.scroll_end(animate=False)
 
     async def _handle_user_input(self, raw_input: str) -> None:
         """Unified pipeline for handling any user-submitted text.
@@ -375,10 +354,9 @@ class OpenHandsApp(App):
             return
 
         # Add the user message to the main display as a Static widget
-        main_display = self.query_one("#main_display", VerticalScroll)
         user_message_widget = Static(f"> {content}", classes="user-message")
-        main_display.mount(user_message_widget)
-        main_display.scroll_end(animate=False)
+        self.main_display.mount(user_message_widget)
+        self.main_display.scroll_end(animate=False)
 
         # Handle commands - only exact matches
         if is_valid_command(content):
@@ -389,16 +367,14 @@ class OpenHandsApp(App):
 
     async def _handle_user_message(self, user_message: str) -> None:
         """Handle regular user messages with the conversation runner."""
-        main_display = self.query_one("#main_display", VerticalScroll)
-
         # Check if conversation runner is initialized
         if self.conversation_runner is None:
             error_widget = Static(
                 "[red]Error: Conversation runner not initialized[/red]",
                 classes="error-message",
             )
-            main_display.mount(error_widget)
-            main_display.scroll_end(animate=False)
+            self.main_display.mount(error_widget)
+            self.main_display.scroll_end(animate=False)
             return
 
         # Show that we're processing the message
@@ -422,8 +398,8 @@ class OpenHandsApp(App):
                 "[green]Message would be processed by conversation runner[/green]",
                 classes="status-message",
             )
-            main_display.mount(placeholder_widget)
-            main_display.scroll_end(animate=False)
+            self.main_display.mount(placeholder_widget)
+            self.main_display.scroll_end(animate=False)
 
     async def _process_message_with_timer(self, user_message: str) -> None:
         """Process message and handle timer lifecycle."""
@@ -443,8 +419,7 @@ class OpenHandsApp(App):
     def action_expand_all(self) -> None:
         """Action to handle Ctrl+E key binding - toggle expand/collapse all
         collapsible widgets."""
-        main_display = self.query_one("#main_display", VerticalScroll)
-        collapsibles = main_display.query(NonClickableCollapsible)
+        collapsibles = self.main_display.query(NonClickableCollapsible)
 
         # Check if any are expanded - if so, collapse all; otherwise expand all
         any_expanded = any(not collapsible.collapsed for collapsible in collapsibles)
@@ -456,13 +431,12 @@ class OpenHandsApp(App):
         """Action to handle Esc key binding - pause the running conversation."""
         if self.conversation_runner and self.conversation_runner.is_running:
             # Add a status message immediately to show the pause was triggered
-            main_display = self.query_one("#main_display", VerticalScroll)
             pause_widget = Static(
                 "[yellow]Pausing conversation...[/yellow]",
                 classes="status-message",
             )
-            main_display.mount(pause_widget)
-            main_display.scroll_end(animate=False)
+            self.main_display.mount(pause_widget)
+            self.main_display.scroll_end(animate=False)
 
             # Run the pause operation asynchronously to avoid blocking the UI
             asyncio.create_task(self._pause_conversation_async())
@@ -483,15 +457,14 @@ class OpenHandsApp(App):
 
     def _update_pause_status(self, message: str) -> None:
         """Update the UI with pause status message."""
-        main_display = self.query_one("#main_display", VerticalScroll)
         status_widget = Static(
             f"[green]{message}[/green]"
             if "paused" in message.lower()
             else f"[red]{message}[/red]",
             classes="status-message",
         )
-        main_display.mount(status_widget)
-        main_display.scroll_end(animate=False)
+        self.main_display.mount(status_widget)
+        self.main_display.scroll_end(animate=False)
 
     def _handle_confirm_command(self) -> None:
         """Handle the /confirm command to toggle confirmation mode."""
@@ -502,7 +475,6 @@ class OpenHandsApp(App):
         self.conversation_runner.toggle_confirmation_mode()
 
         # Show status message
-        main_display = self.query_one("#main_display", VerticalScroll)
         mode_status = (
             "enabled"
             if self.conversation_runner.is_confirmation_mode_active
@@ -512,8 +484,8 @@ class OpenHandsApp(App):
             f"[yellow]Confirmation mode {mode_status}[/yellow]",
             classes="status-message",
         )
-        main_display.mount(status_widget)
-        main_display.scroll_end(animate=False)
+        self.main_display.mount(status_widget)
+        self.main_display.scroll_end(animate=False)
 
     def _handle_confirmation_request(self, pending_actions: list) -> UserConfirmation:
         """Handle confirmation request by showing the side panel.
@@ -635,57 +607,6 @@ class OpenHandsApp(App):
                     severity="warning",
                     timeout=5.0,
                 )
-
-    def action_toggle_input_mode(self) -> None:
-        """Action to toggle between Input and TextArea."""
-        self._toggle_input_mode()
-
-    def action_submit_textarea(self) -> None:
-        """Action to handle Ctrl+J key binding - submit TextArea content."""
-        if self.is_multiline_mode:
-            self._submit_textarea_content()
-
-    def _toggle_input_mode(self) -> None:
-        """Toggle between single-line Input and multi-line TextArea."""
-        input_widget = self.query_one("#user_input", Input)
-        textarea_widget = self.query_one("#user_textarea", TextArea)
-
-        if self.is_multiline_mode:
-            # Switch from TextArea to Input
-            # Replace actual newlines with literal "\n" for single-line display
-            self.stored_content = textarea_widget.text.replace("\n", "\\n")
-            textarea_widget.display = False
-            input_widget.display = True
-            input_widget.value = self.stored_content
-            input_widget.focus()
-            self.is_multiline_mode = False
-        else:
-            # Switch from Input to TextArea
-            # Replace literal "\n" with actual newlines for multi-line display
-            self.stored_content = input_widget.value.replace("\\n", "\n")
-            input_widget.display = False
-            textarea_widget.display = True
-            textarea_widget.text = self.stored_content
-            textarea_widget.focus()
-            self.is_multiline_mode = True
-
-        # Update status line to reflect the new mode
-        self.update_status_line()
-
-    def _submit_textarea_content(self) -> None:
-        """Submit the content from the TextArea."""
-        textarea_widget = self.query_one("#user_textarea", TextArea)
-        content = textarea_widget.text.strip()
-
-        if content:
-            # Clear the textarea and switch back to input mode
-            textarea_widget.text = ""
-            self._toggle_input_mode()
-
-            # Process the content using existing message handling logic
-            # Note: content here contains actual newlines, which is what we want
-            # for processing multi-line input
-            self.run_worker(self._handle_user_input(content), name="handle_textarea")
 
     def _handle_conversation_error(self, title: str, message: str) -> None:
         """Handle conversation errors by showing a notification.

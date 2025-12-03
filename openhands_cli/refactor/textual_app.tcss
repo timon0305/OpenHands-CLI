@@ -41,33 +41,6 @@ Screen {
     margin-bottom: 1;
 }
 
-#user_input {
-    width: 100%;
-    height: 3;
-    background: $background;
-    color: $foreground;
-    border: solid $secondary;
-}
-
-#user_input:focus {
-    border: solid $primary;
-    background: $background;
-}
-
-#user_textarea {
-    width: 100%;
-    height: 6;
-    background: $background;
-    color: $foreground;
-    border: solid $secondary;
-    display: none;
-}
-
-#user_textarea:focus {
-    border: solid $primary;
-    background: $background;
-}
-
 #status_line {
     height: 1;
     background: $background;
@@ -80,12 +53,6 @@ Footer {
     dock: bottom;
     background: $surface;
     color: $foreground;
-}
-
-/* Style the cursor to use primary color */
-Input .input--cursor {
-    background: $primary;
-    color: $background;
 }
 
 /* Panel-like styling for splash screen elements */
