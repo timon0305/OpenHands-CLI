@@ -178,7 +178,6 @@ This is a user microagent for testing.
         mock_public_skill = Skill(
             name="github",
             content="This is a public skill about GitHub.",
-            source="https://github.com/OpenHands/skills/skills/github.md",
             trigger=None,
         )
 
