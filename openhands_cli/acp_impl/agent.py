@@ -262,7 +262,21 @@ class OpenHandsACPAgent(ACPAgent):
                 f"{conversation.agent.llm.model}"  # type: ignore[attr-defined]
             )
 
-            return NewSessionResponse(sessionId=session_id)
+            response = NewSessionResponse(sessionId=session_id)
+            import sys
+
+            print(
+                f"DEBUG: NewSessionResponse created with sessionId={session_id}",
+                file=sys.stderr,
+                flush=True,
+            )
+            print(f"DEBUG: Response object: {response}", file=sys.stderr, flush=True)
+            print(
+                f"DEBUG: Response.__dict__: {response.__dict__}",
+                file=sys.stderr,
+                flush=True,
+            )
+            return response
 
         except MissingAgentSpec as e:
             logger.error(f"Agent not configured: {e}")
