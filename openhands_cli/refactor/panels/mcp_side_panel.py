@@ -5,7 +5,9 @@ from pathlib import Path
 from typing import Any
 
 from fastmcp.mcp_config import MCPConfig
-from textual.containers import Vertical
+from textual.app import App
+from textual.containers import Horizontal, Vertical
+from textual.css.query import NoMatches
 from textual.widgets import Static
 
 from openhands.sdk import Agent
@@ -26,6 +28,40 @@ class MCPSidePanel(Vertical):
         """
         super().__init__(**kwargs)
         self.agent = agent
+
+    @classmethod
+    def toggle(cls, app: App) -> None:
+        """Toggle the MCP side panel on/off within the given app.
+
+        - If a panel already exists, remove it.
+        - If not, create it, mount it into #content_area, and let on_mount()
+          refresh the content.
+        """
+        # Try to find an existing panel
+        try:
+            existing = app.query_one(cls)
+        except NoMatches:
+            existing = None
+
+        if existing is not None:
+            existing.remove()
+            return
+
+        # Otherwise, create a new one and mount it into the content area
+        content_area = app.query_one("#content_area", Horizontal)
+
+        # agent = cls._load_agent_safe()
+        agent = None
+        try:
+            from openhands_cli.tui.settings.store import AgentStore
+
+            agent_store = AgentStore()
+            agent = agent_store.load()
+        except Exception:
+            pass
+
+        panel = cls(agent=agent)
+        content_area.mount(panel)
 
     def compose(self):
         """Compose the MCP side panel content."""

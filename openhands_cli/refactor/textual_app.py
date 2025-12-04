@@ -149,7 +149,7 @@ class OpenHandsApp(App):
     def get_system_commands(self, screen: Screen) -> Iterable[SystemCommand]:
         yield from super().get_system_commands(screen)
         yield SystemCommand(
-            "MCP", "View MCP configurations", self.action_toggle_mcp_panel
+            "MCP", "View MCP configurations", lambda: MCPSidePanel.toggle(self)
         )
         yield SystemCommand(
             "AGENT SETTINGS", "Configure agent settings", self.action_open_settings
@@ -470,26 +470,6 @@ class OpenHandsApp(App):
             self.push_screen(ExitConfirmationModal())
         else:
             self.exit()
-
-    def action_toggle_mcp_panel(self) -> None:
-        """Action to toggle the MCP side panel."""
-        if self.mcp_panel is None:
-            # Create and mount the MCP panel
-            agent = None
-            try:
-                from openhands_cli.tui.settings.store import AgentStore
-
-                agent_store = AgentStore()
-                agent = agent_store.load()
-            except Exception:
-                pass
-
-            self.mcp_panel = MCPSidePanel(agent=agent)
-            self.content_area.mount(self.mcp_panel)
-        else:
-            # Remove the existing panel
-            self.mcp_panel.remove()
-            self.mcp_panel = None
 
 
 def main(
