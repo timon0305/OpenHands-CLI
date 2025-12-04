@@ -25,6 +25,7 @@ Screen {
 #main_display.conversation-running {
     border: thick $accent;
     border-title-color: $accent;
+    border-title-style: bold;
 }
 
 #main_display.conversation-paused {
@@ -35,6 +36,17 @@ Screen {
 #main_display.conversation-error {
     border: thick $error;
     border-title-color: $error;
+}
+
+/* Animated working indicator */
+.working-indicator {
+    width: auto;
+    height: 1;
+    margin: 0 1;
+    padding: 0 1;
+    background: $accent 30%;
+    color: $accent;
+    text-style: bold;
 }
 
 #splash_content {

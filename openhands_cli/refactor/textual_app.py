@@ -110,6 +110,11 @@ class OpenHandsApp(App):
         # MCP panel tracking
         self.mcp_panel: MCPSidePanel | None = None
 
+        # Working indicator tracking
+        self._working_indicator: Static | None = None
+        self._working_indicator_timer = None
+        self._working_indicator_frame = 0
+
         # Register the custom theme
         self.register_theme(OPENHANDS_THEME)
 
@@ -250,9 +255,46 @@ class OpenHandsApp(App):
             display.remove_class("conversation-paused")
             display.remove_class("conversation-error")
             display.border_title = "Agent is working..."
+            self._add_working_indicator()
         else:
             display.remove_class("conversation-running")
             display.border_title = None
+            self._remove_working_indicator()
+
+    def _add_working_indicator(self) -> None:
+        """Add a blinking working indicator at the bottom of the display."""
+        if not hasattr(self, "_working_indicator") or self._working_indicator is None:
+            self._working_indicator = Static(
+                "⠋ Working...", id="working_indicator", classes="working-indicator"
+            )
+            self._working_indicator_timer = self.set_interval(
+                0.1, self._update_working_indicator, pause=False
+            )
+            self._working_indicator_frame = 0
+            self.main_display.mount(self._working_indicator)
+            self.main_display.scroll_end(animate=False)
+
+    def _remove_working_indicator(self) -> None:
+        """Remove the working indicator."""
+        if hasattr(self, "_working_indicator") and self._working_indicator is not None:
+            if (
+                hasattr(self, "_working_indicator_timer")
+                and self._working_indicator_timer is not None
+            ):
+                self._working_indicator_timer.stop()
+            self._working_indicator.remove()
+            self._working_indicator = None
+
+    def _update_working_indicator(self) -> None:
+        """Update the working indicator animation."""
+        if hasattr(self, "_working_indicator") and self._working_indicator is not None:
+            frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+            self._working_indicator_frame = (self._working_indicator_frame + 1) % len(
+                frames
+            )
+            self._working_indicator.update(
+                f"{frames[self._working_indicator_frame]} Working..."
+            )
 
     def display_structured_error(self, error_title: str, error_details: str) -> None:
         """Display a structured error message in the main display.
