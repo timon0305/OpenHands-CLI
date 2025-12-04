@@ -49,7 +49,7 @@ class SettingsScreen(ModalScreen):
     memory_select: getters.query_one[Select] = getters.query_one(
         "#memory_condensation_select"
     )
-    basic_section: getters.query_one[Select] = getters.query_one("#basic_section")
+    basic_section: getters.query_one[Container] = getters.query_one("#basic_section")
     advanced_section: getters.query_one[Container] = getters.query_one(
         "#advanced_section"
     )
@@ -219,46 +219,17 @@ class SettingsScreen(ModalScreen):
             self._update_advanced_visibility()
             self._update_field_dependencies()
 
-        # Ensure buttons are always visible and accessible
-        self._ensure_buttons_visible()
-
-    def _ensure_buttons_visible(self) -> None:
-        """Ensure that the save and cancel buttons are always visible and enabled."""
-        try:
-            save_button = self.query_one("#save_button", Button)
-            cancel_button = self.query_one("#cancel_button", Button)
-
-            # Make sure buttons are visible and enabled
-            save_button.display = True
-            cancel_button.display = True
-            save_button.disabled = False
-            cancel_button.disabled = False
-
-            # Ensure the button container is visible
-            button_container = self.query_one("#button_container")
-            button_container.display = True
-
-        except Exception:
-            # If buttons can't be found, they might not be mounted yet
-            # This is fine, they'll be visible when composed
-            pass
-
     def _clear_form(self) -> None:
         """Clear all form values before reloading."""
-        try:
-            # Clear all input fields
-            self.api_key_input.value = ""
-            self.api_key_input.placeholder = "Enter your API key"
+        self.api_key_input.value = ""
+        self.api_key_input.placeholder = "Enter your API key"
 
-            self.custom_model_input.value = ""
-            self.base_url_input.value = ""
-            self.mode_select.value = "basic"
-            self.provider_select.value = Select.BLANK
-            self.model_select.value = Select.BLANK
-            self.memory_select.value = False
-        except Exception:
-            # If any widget is not found, just continue
-            pass
+        self.custom_model_input.value = ""
+        self.base_url_input.value = ""
+        self.mode_select.value = "basic"
+        self.provider_select.value = Select.BLANK
+        self.model_select.value = Select.BLANK
+        self.memory_select.value = False
 
     def _load_current_settings(self) -> None:
         """Load current agent settings into the form."""
@@ -521,44 +492,10 @@ class SettingsScreen(ModalScreen):
             # Invoke callback if provided, then close screen
             if self.on_settings_saved:
                 self.on_settings_saved()
-            self._close_screen()
+            self.dismiss(True)
 
         except Exception as e:
             self._show_message(f"Error saving settings: {str(e)}", is_error=True)
-
-    def _refresh_after_modal_dismiss(self) -> None:
-        """Refresh the settings screen after returning from exit modal."""
-        try:
-            # Force a complete refresh of the screen
-            self.refresh()
-
-            # Ensure buttons are visible and accessible
-            self._ensure_buttons_visible()
-
-            # Focus the cancel button to make it clear it's available
-            try:
-                cancel_button = self.query_one("#cancel_button", Button)
-                cancel_button.focus()
-            except Exception:
-                pass
-
-        except Exception:
-            # If refresh fails, just continue
-            pass
-
-    def _close_screen(self, success: bool = True) -> None:
-        """Safely close the settings screen and return to the main UI."""
-        try:
-            # For ModalScreen, we should use dismiss() to properly close
-            # Return True if settings were saved successfully
-            self.dismiss(success)
-        except Exception:
-            # Fallback to pop_screen if dismiss fails
-            try:
-                self.app.pop_screen()
-            except Exception:
-                # Last resort - just pass, let the app handle it
-                pass
 
     def _save_llm_settings(
         self, model: str, api_key: str, base_url: str | None = None
