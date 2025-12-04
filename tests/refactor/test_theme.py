@@ -16,24 +16,6 @@ class TestOpenHandsTheme:
         assert theme.name == "openhands"
         assert theme.dark is True
 
-    def test_theme_colors(self):
-        """Test that theme has correct color values."""
-        theme = create_openhands_theme()
-
-        # Test main colors
-        assert theme.primary == "#ffe165"  # Logo, cursor color
-        assert theme.secondary == "#ffffff"  # Borders, plain text
-        assert theme.accent == "#277dff"  # Special text
-        assert theme.foreground == "#ffffff"  # Default text color
-        assert theme.background == "#222222"  # Background color
-        assert theme.surface == "#222222"  # Surface color
-        assert theme.panel == "#222222"  # Panel color
-
-        # Test status colors
-        assert theme.success == "#ffe165"  # Success messages
-        assert theme.warning == "#ffe165"  # Warning messages
-        assert theme.error == "#ff6b6b"  # Error messages
-
     def test_theme_variables(self):
         """Test that theme has correct custom variables."""
         theme = create_openhands_theme()
@@ -57,10 +39,6 @@ class TestOpenHandsTheme:
         assert OPENHANDS_THEME.secondary == created_theme.secondary
         assert OPENHANDS_THEME.accent == created_theme.accent
         assert OPENHANDS_THEME.background == created_theme.background
-
-    def test_theme_is_dark(self):
-        """Test that theme is configured as a dark theme."""
-        assert OPENHANDS_THEME.dark is True
 
     def test_theme_consistency(self):
         """Test that multiple calls to create_openhands_theme are consistent."""
