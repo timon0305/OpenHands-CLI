@@ -67,7 +67,7 @@ class TestInputField:
     def test_content_preserved_during_mode_switches(
         self, input_field, content, expected_single, expected_multi
     ):
-        """Verify content is preserved with proper newline conversion during mode switches."""
+        """Verify content is preserved with proper newline conversion during full round-trip mode switches."""
         # Mock the widgets
         input_field.input_widget = Mock(spec=Input)
         input_field.textarea_widget = Mock(spec=TextArea)
@@ -76,20 +76,43 @@ class TestInputField:
         # Start with content in single-line mode
         input_field.input_widget.value = content
         input_field.is_multiline_mode = False
+        original_content = content
 
-        # Switch to multi-line mode
+        # Switch to multi-line mode (first toggle)
         input_field.action_toggle_input_mode()
 
         # Verify content conversion to multi-line format
         input_field.textarea_widget.text = expected_multi
         assert input_field.stored_content == expected_multi
 
-        # Switch back to single-line mode
+        # Switch back to single-line mode (second toggle)
         input_field.textarea_widget.text = expected_multi
         input_field.action_toggle_input_mode()
 
         # Verify content conversion back to single-line format
         assert input_field.stored_content == expected_single
+
+        # Complete the round-trip: toggle back to multi-line mode (third toggle)
+        input_field.input_widget.value = expected_single
+        input_field.action_toggle_input_mode()
+
+        # Verify that after full round-trip, the original multi-line content is preserved
+        input_field.textarea_widget.text = expected_multi
+        assert input_field.stored_content == expected_multi
+
+        # Final toggle back to single-line mode (fourth toggle)
+        input_field.textarea_widget.text = expected_multi
+        input_field.action_toggle_input_mode()
+
+        # Verify that the content is consistently preserved through the complete cycle
+        assert input_field.stored_content == expected_single
+
+        # Verify that the content semantically represents the same information
+        # (newlines are preserved but in the appropriate format for each mode)
+        if expected_multi != expected_single:
+            # For content with newlines, verify the conversion is bidirectional
+            assert expected_single.replace("\\n", "\n") == expected_multi
+            assert expected_multi.replace("\n", "\\n") == expected_single
 
     def test_focus_management_during_mode_switches(self, input_field):
         """Verify correct widget receives focus after toggling modes."""
