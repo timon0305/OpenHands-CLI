@@ -7,7 +7,6 @@ This is a simplified version that demonstrates the TUI functionality.
 import logging
 import os
 import warnings
-
 from pathlib import Path
 
 from dotenv import load_dotenv
