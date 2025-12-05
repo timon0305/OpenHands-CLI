@@ -1,10 +1,10 @@
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 from pydantic import SecretStr
 
 from openhands.sdk import LLM
-from openhands_cli.locations import AGENT_SETTINGS_PATH
 from openhands_cli.utils import get_default_cli_agent
 
 
@@ -95,31 +95,21 @@ def setup_test_agent_config(tmp_path_factory):
     agent_settings_json = agent.model_dump_json()
     agent_settings_path.write_text(agent_settings_json)
 
-    # Store the original read method
-    from openhands.sdk import LocalFileStore
+    #  Also create the agent settings in the default location as a fallback
+    # This ensures tests work even if the patch isn't applied early enough
+    from openhands_cli import locations
 
-    original_read = LocalFileStore.read
+    default_persistence_dir = Path(locations.PERSISTENCE_DIR)
+    if not default_persistence_dir.exists():
+        default_persistence_dir.mkdir(parents=True, exist_ok=True)
+    default_agent_settings = default_persistence_dir / "agent_settings.json"
+    if not default_agent_settings.exists():
+        default_agent_settings.write_text(agent_settings_json)
 
-    # Create a mock LocalFileStore.read() that falls back to our agent config
-    def mock_file_store_read(self, path):
-        try:
-            # Try to read from the file store's root first
-            return original_read(self, path)
-        except FileNotFoundError:
-            # If file doesn't exist and it's the agent settings file,
-            # return our mock agent config
-            if path == AGENT_SETTINGS_PATH or path.endswith("agent_settings.json"):
-                return agent_settings_json
-            # Otherwise, re-raise the exception
-            raise
-
-    # Patch locations module and LocalFileStore
-    with (
-        patch.multiple(
-            "openhands_cli.locations",
-            PERSISTENCE_DIR=str(temp_persistence_dir),
-            CONVERSATIONS_DIR=str(conversations_dir),
-        ),
-        patch("openhands.sdk.LocalFileStore.read", mock_file_store_read),
+    # Patch locations module
+    with patch.multiple(
+        "openhands_cli.locations",
+        PERSISTENCE_DIR=str(temp_persistence_dir),
+        CONVERSATIONS_DIR=str(conversations_dir),
     ):
         yield temp_persistence_dir
