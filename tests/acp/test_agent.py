@@ -31,8 +31,8 @@ def acp_agent(mock_connection):
 async def test_initialize_with_configured_agent(acp_agent):
     """Test agent initialization when agent is configured."""
     request = InitializeRequest(
-        protocolVersion=1,
-        clientInfo=Implementation(name="test-client", version="1.0.0"),
+        protocol_version=1,
+        client_info=Implementation(name="test-client", version="1.0.0"),
     )
 
     # Mock load_agent_specs to succeed
@@ -54,8 +54,8 @@ async def test_initialize_without_configured_agent(acp_agent):
     from openhands_cli.setup import MissingAgentSpec
 
     request = InitializeRequest(
-        protocolVersion=1,
-        clientInfo=Implementation(name="test-client", version="1.0.0"),
+        protocol_version=1,
+        client_info=Implementation(name="test-client", version="1.0.0"),
     )
 
     # Mock load_agent_specs to raise MissingAgentSpec
@@ -73,7 +73,7 @@ async def test_authenticate(acp_agent):
     """Test authentication."""
     from acp import AuthenticateRequest
 
-    request = AuthenticateRequest(methodId="test-method")
+    request = AuthenticateRequest(method_id="test-method")
     response = await acp_agent.authenticate(request)
 
     assert response is not None
@@ -82,7 +82,7 @@ async def test_authenticate(acp_agent):
 @pytest.mark.asyncio
 async def test_new_session_success(acp_agent, tmp_path):
     """Test creating a new session successfully."""
-    request = NewSessionRequest(cwd=str(tmp_path), mcpServers=[])
+    request = NewSessionRequest(cwd=str(tmp_path), mcp_servers=[])
 
     # Mock the CLI utilities
     with (
@@ -98,7 +98,7 @@ async def test_new_session_success(acp_agent, tmp_path):
         mock_conversation = MagicMock()
         mock_conv.return_value = mock_conversation
 
-        response = await acp_agent.newSession(request)
+        response = await acp_agent.new_session(request)
 
         # Verify session was created
         assert response.sessionId is not None
@@ -119,14 +119,14 @@ async def test_new_session_agent_not_configured(acp_agent, tmp_path):
 
     from openhands_cli.setup import MissingAgentSpec
 
-    request = NewSessionRequest(cwd=str(tmp_path), mcpServers=[])
+    request = NewSessionRequest(cwd=str(tmp_path), mcp_servers=[])
 
     # Mock load_agent_specs to raise MissingAgentSpec
     with patch("openhands_cli.acp_impl.agent.load_agent_specs") as mock_load:
         mock_load.side_effect = MissingAgentSpec("Not configured")
 
         with pytest.raises(RequestError):
-            await acp_agent.newSession(request)
+            await acp_agent.new_session(request)
 
 
 @pytest.mark.asyncio
@@ -134,7 +134,7 @@ async def test_new_session_creates_working_directory(acp_agent, tmp_path):
     """Test that new session creates working directory if it doesn't exist."""
     # Create a path that doesn't exist yet
     new_dir = tmp_path / "subdir" / "workdir"
-    request = NewSessionRequest(cwd=str(new_dir), mcpServers=[])
+    request = NewSessionRequest(cwd=str(new_dir), mcp_servers=[])
 
     with (
         patch("openhands_cli.acp_impl.agent.load_agent_specs") as mock_load,
@@ -147,7 +147,7 @@ async def test_new_session_creates_working_directory(acp_agent, tmp_path):
         mock_conversation = MagicMock()
         mock_conv.return_value = mock_conversation
 
-        await acp_agent.newSession(request)
+        await acp_agent.new_session(request)
 
         # Verify directory was created
         assert new_dir.exists()
@@ -164,7 +164,7 @@ async def test_prompt_unknown_session(acp_agent):
 
     content_blocks = [TextContentBlock(type="text", text="Hello")]
     request = PromptRequest(
-        sessionId="unknown-session",
+        session_id="unknown-session",
         prompt=content_blocks,  # type: ignore[arg-type]
     )
 
@@ -186,7 +186,7 @@ async def test_prompt_empty_text(acp_agent):
 
     # Test with empty prompt
     request = PromptRequest(
-        sessionId=session_id, prompt=[TextContentBlock(type="text", text="")]
+        session_id=session_id, prompt=[TextContentBlock(type="text", text="")]
     )
     response = await acp_agent.prompt(request)
 
@@ -225,8 +225,8 @@ async def test_prompt_success(acp_agent, mock_connection):
             MockConv.side_effect = capture_callbacks
 
             # Create session to set up callbacks
-            request = NewSessionRequest(cwd=str(Path.cwd()), mcpServers=[])
-            response = await acp_agent.newSession(request)
+            request = NewSessionRequest(cwd=str(Path.cwd()), mcp_servers=[])
+            response = await acp_agent.new_session(request)
             session_id = response.sessionId
 
     # Create a mock agent message event
@@ -246,7 +246,7 @@ async def test_prompt_success(acp_agent, mock_connection):
 
     with patch("asyncio.to_thread", side_effect=mock_run):
         request = PromptRequest(
-            sessionId=session_id, prompt=[TextContentBlock(type="text", text="Hello")]
+            session_id=session_id, prompt=[TextContentBlock(type="text", text="Hello")]
         )
         response = await acp_agent.prompt(request)
 
@@ -265,7 +265,7 @@ async def test_cancel(acp_agent):
     from acp import CancelNotification
 
     session_id = "test-session"
-    notification = CancelNotification(sessionId=session_id)
+    notification = CancelNotification(session_id=session_id)
 
     # Create mock conversation
     mock_conversation = MagicMock()
@@ -285,7 +285,7 @@ async def test_cancel_unknown_session(acp_agent):
     """
     from acp import CancelNotification, RequestError
 
-    notification = CancelNotification(sessionId="unknown-session")
+    notification = CancelNotification(session_id="unknown-session")
 
     # When session doesn't exist, cancel will try to create/load it,
     # which requires agent configuration. This will fail with RequestError.
@@ -302,12 +302,12 @@ async def test_load_session_not_found(acp_agent):
     from acp import LoadSessionRequest, RequestError
 
     request = LoadSessionRequest(
-        sessionId="non-existent", cwd="/test/path", mcpServers=[]
+        session_id="non-existent", cwd="/test/path", mcp_servers=[]
     )
 
     # Invalid UUID format will raise RequestError
     with pytest.raises(RequestError):
-        await acp_agent.loadSession(request)
+        await acp_agent.load_session(request)
 
 
 @pytest.mark.asyncio
@@ -321,7 +321,9 @@ async def test_load_session_success(acp_agent, mock_connection):
     from openhands.sdk.event.llm_convertible.message import MessageEvent
 
     session_id = str(uuid4())
-    request = LoadSessionRequest(sessionId=session_id, cwd="/test/path", mcpServers=[])
+    request = LoadSessionRequest(
+        session_id=session_id, cwd="/test/path", mcp_servers=[]
+    )
 
     # Create mock conversation with history
     mock_conversation = MagicMock()
@@ -335,7 +337,7 @@ async def test_load_session_success(acp_agent, mock_connection):
 
     acp_agent._active_sessions[session_id] = mock_conversation
 
-    await acp_agent.loadSession(request)
+    await acp_agent.load_session(request)
 
     # Verify sessionUpdate was called for agent message only
     # (user messages are skipped to avoid duplication in Zed UI)
@@ -347,8 +349,8 @@ async def test_set_session_mode(acp_agent):
     """Test setting session mode."""
     from acp.schema import SetSessionModeRequest
 
-    request = SetSessionModeRequest(sessionId="test-session", modeId="default")
-    response = await acp_agent.setSessionMode(request)
+    request = SetSessionModeRequest(session_id="test-session", mode_id="default")
+    response = await acp_agent.set_session_mode(request)
 
     assert response is not None
 
@@ -358,8 +360,8 @@ async def test_set_session_model(acp_agent):
     """Test setting session model."""
     from acp.schema import SetSessionModelRequest
 
-    request = SetSessionModelRequest(sessionId="test-session", modelId="default")
-    response = await acp_agent.setSessionModel(request)
+    request = SetSessionModelRequest(session_id="test-session", model_id="default")
+    response = await acp_agent.set_session_model(request)
 
     assert response is not None
 
@@ -412,8 +414,8 @@ async def test_prompt_with_image(acp_agent, mock_connection):
             MockConv.side_effect = capture_callbacks
 
             # Create session to set up callbacks
-            request = NewSessionRequest(cwd=str(Path.cwd()), mcpServers=[])
-            response = await acp_agent.newSession(request)
+            request = NewSessionRequest(cwd=str(Path.cwd()), mcp_servers=[])
+            response = await acp_agent.new_session(request)
             session_id = response.sessionId
 
     # Create a mock agent message event
@@ -435,13 +437,13 @@ async def test_prompt_with_image(acp_agent, mock_connection):
         # Note: ACP ImageContentBlock uses 'data' field which can be a URL
         # or base64 data
         request = PromptRequest(
-            sessionId=session_id,
+            session_id=session_id,
             prompt=[
                 TextContentBlock(type="text", text="What do you see in this image?"),
                 ImageContentBlock(
                     type="image",
                     data="https://example.com/image.png",
-                    mimeType="image/png",
+                    mime_type="image/png",
                 ),
             ],
         )
@@ -462,8 +464,8 @@ async def test_initialize_reports_image_capability(acp_agent):
     from acp.schema import Implementation
 
     request = InitializeRequest(
-        protocolVersion=1,
-        clientInfo=Implementation(name="test-client", version="1.0.0"),
+        protocol_version=1,
+        client_info=Implementation(name="test-client", version="1.0.0"),
     )
 
     with patch("openhands_cli.acp_impl.agent.load_agent_specs") as mock_load:
@@ -489,7 +491,7 @@ async def test_new_session_with_mcp_servers(acp_agent, tmp_path):
         env=[],  # Empty array - should be converted to {}
     )
 
-    request = NewSessionRequest(cwd=str(tmp_path), mcpServers=[mcp_server])
+    request = NewSessionRequest(cwd=str(tmp_path), mcp_servers=[mcp_server])
 
     with (
         patch("openhands_cli.acp_impl.agent.load_agent_specs") as mock_load,
@@ -502,7 +504,7 @@ async def test_new_session_with_mcp_servers(acp_agent, tmp_path):
         mock_conversation = MagicMock()
         mock_conv.return_value = mock_conversation
 
-        response = await acp_agent.newSession(request)
+        response = await acp_agent.new_session(request)
 
         # Verify session was created
         assert response.sessionId is not None
