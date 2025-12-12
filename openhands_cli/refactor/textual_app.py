@@ -393,7 +393,8 @@ class OpenHandsApp(App):
                 # Handle MCP setup errors or other initialization failures
                 self.notify(
                     title="Agent Initialization Error",
-                    message=f"Failed to initialize agent: {str(e)}. Please check your configuration in settings.",
+                    message=f"Failed to initialize agent: {str(e)}. "
+                    "Please check your configuration in settings.",
                     severity="error",
                 )
                 return
@@ -454,7 +455,8 @@ class OpenHandsApp(App):
                 # Handle MCP setup errors or other initialization failures
                 self.notify(
                     title="Agent Initialization Error",
-                    message=f"Failed to initialize agent: {str(e)}. Please check your configuration in settings.",
+                    message=f"Failed to initialize agent: {str(e)}. "
+                    "Please check your configuration in settings.",
                     severity="error",
                 )
                 return

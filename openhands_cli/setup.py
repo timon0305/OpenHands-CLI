@@ -148,19 +148,24 @@ def setup_conversation(
 
     except (RuntimeError, ValueError) as e:
         # Check if this is an MCP connection error or agent mismatch due to MCP config
-        if ("Client failed to connect" in str(e) or 
-            "Unexpected authorization response" in str(e) or
-            ("Agent provided is different" in str(e) and "mcp_config" in str(e))):
-            
+        if (
+            "Client failed to connect" in str(e)
+            or "Unexpected authorization response" in str(e)
+            or ("Agent provided is different" in str(e) and "mcp_config" in str(e))
+        ):
             print_formatted_text(
-                HTML("<red>✗ MCP server connection failed. Please check your MCP configuration.</red>")
+                HTML(
+                    "<red>✗ MCP server connection failed. "
+                    "Please check your MCP configuration.</red>"
+                )
             )
-            
+
             # Raise a custom exception to notify the UI about MCP issues
             # Don't create a fallback conversation - let the UI handle this
             raise MCPSetupError(
-                f"MCP server setup failed: {str(e)}. Please validate your MCP configuration in settings.",
-                conversation=None
+                f"MCP server setup failed: {str(e)}. "
+                "Please validate your MCP configuration in settings.",
+                conversation=None,
             )
         else:
             # Re-raise other errors

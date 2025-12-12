@@ -21,7 +21,7 @@ from openhands.sdk.security.confirmation_policy import (
     NeverConfirm,
 )
 from openhands_cli.refactor.widgets.richlog_visualizer import ConversationVisualizer
-from openhands_cli.setup import setup_conversation, MCPSetupError
+from openhands_cli.setup import MCPSetupError, setup_conversation
 from openhands_cli.user_actions.types import UserConfirmation
 
 
@@ -62,7 +62,8 @@ class ConversationRunner:
                 f"Failed to initialize agent: {str(e)}",
                 "error",
             )
-            # Re-raise the exception to prevent the conversation runner from being created
+            # Re-raise the exception to prevent
+            # the conversation runner from being created
             raise
 
         self._running = False
