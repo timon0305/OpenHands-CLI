@@ -102,7 +102,7 @@ exe = EXE(
     debug=False,
     bootloader_ignore_signals=False,
     strip=True,  # Strip debug symbols to reduce size
-    upx=True,    # Use UPX compression if available
+    upx=False if sys.platform == "win32" else True,  # Disable UPX on Windows to avoid DLL loading issues
     upx_exclude=[],
     runtime_tmpdir=None,
     console=True,  # CLI application needs console
