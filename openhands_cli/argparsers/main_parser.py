@@ -3,29 +3,12 @@
 import argparse
 
 from openhands_cli import __version__
-
-
-def add_confirmation_mode_args(
-    parser_or_group: argparse.ArgumentParser | argparse._MutuallyExclusiveGroup,
-) -> None:
-    """Add confirmation mode arguments to a parser or mutually exclusive group.
-
-    Args:
-        parser_or_group: Either an ArgumentParser or a mutually exclusive group
-    """
-    parser_or_group.add_argument(
-        "--always-approve",
-        action="store_true",
-        help="Auto-approve all actions without asking for confirmation",
-    )
-    parser_or_group.add_argument(
-        "--llm-approve",
-        action="store_true",
-        help=(
-            "Enable LLM-based security analyzer "
-            "(only confirm LLM-predicted high-risk actions)"
-        ),
-    )
+from openhands_cli.argparsers.acp_parser import add_acp_parser
+from openhands_cli.argparsers.auth_parser import add_login_parser, add_logout_parser
+from openhands_cli.argparsers.cloud_parser import add_cloud_parser
+from openhands_cli.argparsers.mcp_parser import add_mcp_parser
+from openhands_cli.argparsers.serve_parser import add_serve_parser
+from openhands_cli.argparsers.utils import add_confirmation_mode_args
 
 
 def create_main_parser() -> argparse.ArgumentParser:
@@ -51,10 +34,13 @@ def create_main_parser() -> argparse.ArgumentParser:
                 openhands --resume conversation-id  # Resume conversation
                 openhands --always-approve          # Auto-approve all actions
                 openhands --llm-approve             # LLM-based approval mode
+                openhands cloud -t "Fix bug"        # Create cloud conversation
                 openhands serve                     # Launch GUI server
                 openhands serve --gpu               # Launch with GPU support
                 openhands acp                       # Agent-Client Protocol
-                                                      server (e.g., Zed IDE)
+                                                      server (e.g., Toad CLI, Zed IDE)
+                openhands login                     # Authenticate with OpenHands Cloud
+                openhands logout                    # Log out from OpenHands Cloud
         """,
     )
 
@@ -82,7 +68,19 @@ def create_main_parser() -> argparse.ArgumentParser:
     )
 
     # CLI arguments at top level (default mode)
-    parser.add_argument("--resume", type=str, help="Conversation ID to resume")
+    parser.add_argument(
+        "--resume",
+        type=str,
+        nargs="?",
+        const="",
+        help="Conversation ID to resume. If no ID provided, shows list of recent "
+        "conversations",
+    )
+    parser.add_argument(
+        "--last",
+        action="store_true",
+        help="Resume the most recent conversation (use with --resume)",
+    )
     parser.add_argument(
         "--exp",
         action="store_true",
@@ -110,26 +108,20 @@ def create_main_parser() -> argparse.ArgumentParser:
     # Subcommands
     subparsers = parser.add_subparsers(dest="command", help="Additional commands")
 
+    # Add acp subcommands
+    add_acp_parser(subparsers)
+
     # Add serve subcommand
-    serve_parser = subparsers.add_parser(
-        "serve", help="Launch the OpenHands GUI server using Docker (web interface)"
-    )
-    serve_parser.add_argument(
-        "--mount-cwd",
-        action="store_true",
-        help="Mount the current working directory in the Docker container",
-    )
-    serve_parser.add_argument(
-        "--gpu", action="store_true", help="Enable GPU support in the Docker container"
-    )
+    add_serve_parser(subparsers)
 
-    # Add ACP subcommand
-    acp_parser = subparsers.add_parser(
-        "acp", help="Start OpenHands as an Agent Client Protocol (ACP) agent"
-    )
+    # Add MCP subcommand
+    add_mcp_parser(subparsers)
 
-    # ACP confirmation mode options (mutually exclusive)
-    acp_confirmation_group = acp_parser.add_mutually_exclusive_group()
-    add_confirmation_mode_args(acp_confirmation_group)
+    # Add cloud subcommand
+    add_cloud_parser(subparsers)
+
+    # Add authentication subcommands
+    add_login_parser(subparsers)
+    add_logout_parser(subparsers)
 
     return parser

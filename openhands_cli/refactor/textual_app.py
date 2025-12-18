@@ -31,7 +31,6 @@ from openhands.sdk.security.risk import SecurityRisk
 from openhands_cli.refactor.content.splash import get_splash_content
 from openhands_cli.refactor.core.commands import is_valid_command, show_help
 from openhands_cli.refactor.core.conversation_runner import ConversationRunner
-from openhands_cli.refactor.core.theme import OPENHANDS_THEME
 from openhands_cli.refactor.modals import SettingsScreen
 from openhands_cli.refactor.modals.confirmation_modal import ConfirmationSettingsModal
 from openhands_cli.refactor.modals.exit_modal import ExitConfirmationModal
@@ -46,6 +45,7 @@ from openhands_cli.refactor.widgets.status_line import (
     InfoStatusLine,
     WorkingStatusLine,
 )
+from openhands_cli.theme import OPENHANDS_THEME
 from openhands_cli.user_actions.types import UserConfirmation
 
 
@@ -180,9 +180,12 @@ class OpenHandsApp(App):
 
                 console = Console()
                 console.print(
-                    "[red]Headless mode requires existing settings.[/red]\n"
-                    "[bold]Please run:[/bold] [green]openhands --exp[/green] "
-                    "to configure your settings before using [cyan]--headless[/cyan]."
+                    f"[{OPENHANDS_THEME.error}]Headless mode requires existing "
+                    f"settings.[/{OPENHANDS_THEME.error}]\n"
+                    f"[bold]Please run:[/bold] [{OPENHANDS_THEME.success}]openhands "
+                    f"--exp[/{OPENHANDS_THEME.success}] to configure your settings "
+                    f"before using [{OPENHANDS_THEME.accent}]--headless"
+                    f"[/{OPENHANDS_THEME.accent}]."
                 )
                 self.exit()
                 return
@@ -372,6 +375,8 @@ class OpenHandsApp(App):
             show_help(self.main_display)
         elif command == "/confirm":
             self._handle_confirm_command()
+        elif command == "/condense":
+            self._handle_condense_command()
         elif command == "/exit":
             self._handle_exit()
         else:
@@ -404,7 +409,8 @@ class OpenHandsApp(App):
         except RuntimeError:
             # In test environment, just show a placeholder message
             placeholder_widget = Static(
-                "[green]Message would be processed by conversation runner[/green]",
+                f"[{OPENHANDS_THEME.success}]Message would be processed by "
+                f"conversation runner[/{OPENHANDS_THEME.success}]",
                 classes="status-message",
             )
             self.main_display.mount(placeholder_widget)
@@ -472,6 +478,20 @@ class OpenHandsApp(App):
             policy_name = "Custom policy"
 
         self.notify(f"Confirmation policy set to: {policy_name}")
+
+    def _handle_condense_command(self) -> None:
+        """Handle the /condense command to condense conversation history."""
+        if not self.conversation_runner:
+            self.notify(
+                title="Condense Error",
+                message="No conversation available to condense",
+                severity="error",
+            )
+            return
+
+        # Use the async condensation method from conversation runner
+        # This will handle all error cases and notifications
+        asyncio.create_task(self.conversation_runner.condense_async())
 
     def _handle_confirmation_request(
         self, pending_actions: list[ActionEvent]
