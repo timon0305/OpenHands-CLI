@@ -75,9 +75,9 @@ class TestCLIWithRealLLM:
 
             # Check that we got some response
             output = result.stdout.lower() + result.stderr.lower()
-            assert (
-                "conversation id:" in output or "goodbye" in output
-            ), f"Expected conversation output, got: {result.stdout[:500]}"
+            assert "conversation id:" in output or "goodbye" in output, (
+                f"Expected conversation output, got: {result.stdout[:500]}"
+            )
 
 
 class TestCLIHeadlessSnapshot:

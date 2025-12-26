@@ -34,9 +34,7 @@ def real_agent_config() -> dict[str, Any] | None:
         "base_url": os.environ.get(
             "LLM_BASE_URL", "https://llm-proxy.eval.all-hands.dev"
         ),
-        "model": os.environ.get(
-            "LLM_MODEL", "litellm_proxy/claude-haiku-4-5-20251001"
-        ),
+        "model": os.environ.get("LLM_MODEL", "litellm_proxy/claude-haiku-4-5-20251001"),
     }
 
 

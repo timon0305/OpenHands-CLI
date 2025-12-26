@@ -203,7 +203,7 @@ class TestOpenHandsAppSnapshots:
         This test uses mocks to avoid external dependencies.
         """
 
-        # Mock the splash content to be deterministic
+        # Mock the splash content and WORK_DIR to be deterministic
         with (
             patch(
                 "openhands_cli.refactor.textual_app.get_splash_content",
@@ -212,6 +212,10 @@ class TestOpenHandsAppSnapshots:
             patch(
                 "openhands_cli.refactor.modals.settings.settings_screen.SettingsScreen.is_initial_setup_required",
                 return_value=False,
+            ),
+            patch(
+                "openhands_cli.refactor.widgets.status_line.WORK_DIR",
+                "/test/workspace",
             ),
         ):
             from openhands_cli.refactor.textual_app import OpenHandsApp
