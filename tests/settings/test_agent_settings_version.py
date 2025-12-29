@@ -33,8 +33,8 @@ class TestSerializeAgentMinimal:
 
     def test_includes_version_field(self):
         """Test that serialized output includes _version field."""
-        with patch("openhands_cli.stores.agent_store.LLM") as MockLLM:
-            from openhands.sdk import Agent, LLM
+        with patch("openhands_cli.stores.agent_store.LLM"):
+            from openhands.sdk import LLM, Agent
 
             llm = LLM(model="test-model", api_key="test-key")
             agent = Agent(llm=llm)
@@ -47,7 +47,7 @@ class TestSerializeAgentMinimal:
 
     def test_preserves_condenser_kind(self):
         """Test that condenser kind discriminator is preserved."""
-        from openhands.sdk import Agent, LLM, LLMSummarizingCondenser
+        from openhands.sdk import LLM, Agent, LLMSummarizingCondenser
 
         llm = LLM(model="test-model", api_key="test-key")
         condenser = LLMSummarizingCondenser(llm=llm)
@@ -61,7 +61,7 @@ class TestSerializeAgentMinimal:
 
     def test_excludes_default_values(self):
         """Test that default values are excluded from serialization."""
-        from openhands.sdk import Agent, LLM, LLMSummarizingCondenser
+        from openhands.sdk import LLM, Agent, LLMSummarizingCondenser
 
         llm = LLM(model="test-model", api_key="test-key")
         condenser = LLMSummarizingCondenser(llm=llm)
@@ -232,7 +232,7 @@ class TestAgentStoreSave:
 
     def test_save_uses_minimal_serialization(self, agent_store, mock_file_store):
         """Test that save uses _serialize_agent_minimal."""
-        from openhands.sdk import Agent, LLM, LLMSummarizingCondenser
+        from openhands.sdk import LLM, Agent, LLMSummarizingCondenser
 
         llm = LLM(model="test-model", api_key="test-key")
         condenser = LLMSummarizingCondenser(llm=llm)

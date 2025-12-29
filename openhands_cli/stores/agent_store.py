@@ -5,6 +5,7 @@ import json
 from typing import Any
 
 from prompt_toolkit import HTML, print_formatted_text
+from pydantic import BaseModel
 
 from openhands.sdk import (
     LLM,
@@ -32,22 +33,41 @@ from openhands_cli.utils import (
 AGENT_SETTINGS_VERSION = "v1"
 
 
+def _preserve_literal_fields(model: BaseModel, dump: dict[str, Any]) -> None:
+    """Recursively preserve Literal fields (discriminators) in a model dump.
+
+    When using exclude_defaults=True, Pydantic excludes Literal fields because
+    they have default values. However, these fields are discriminators needed
+    for polymorphic deserialization. This function restores them.
+    """
+    from typing import Literal, get_origin
+
+    for field_name, field_info in model.__class__.model_fields.items():
+        annotation = field_info.annotation
+        # Check if field is a Literal type (discriminator)
+        if get_origin(annotation) is Literal:
+            if field_name not in dump:
+                dump[field_name] = getattr(model, field_name)
+        # Recursively handle nested models
+        elif field_name in dump and isinstance(dump[field_name], dict):
+            field_value = getattr(model, field_name)
+            if isinstance(field_value, BaseModel):
+                _preserve_literal_fields(field_value, dump[field_name])
+
+
 def _serialize_agent_minimal(agent: Agent) -> str:
     """Serialize agent with minimal data, preserving only user-configured values.
 
     Uses exclude_defaults=True to omit SDK default values, ensuring users
-    automatically get updated defaults when the SDK changes. Discriminator
-    fields (like 'kind') are preserved for polymorphic deserialization.
+    automatically get updated defaults when the SDK changes. Literal fields
+    (discriminators) are preserved for polymorphic deserialization.
 
     The output includes a _version field to track the settings format version.
     """
     dump = agent.model_dump(exclude_defaults=True, context={"expose_secrets": True})
 
-    # Preserve discriminator fields for polymorphic types
-    if agent.condenser is not None:
-        if "condenser" not in dump:
-            dump["condenser"] = {}
-        dump["condenser"]["kind"] = agent.condenser.kind
+    # Preserve Literal fields (discriminators) for polymorphic types
+    _preserve_literal_fields(agent, dump)
 
     # Add version field
     dump["_version"] = AGENT_SETTINGS_VERSION
