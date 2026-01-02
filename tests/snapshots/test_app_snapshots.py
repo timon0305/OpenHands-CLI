@@ -20,8 +20,8 @@ import pytest
 from textual.app import App, ComposeResult
 from textual.widgets import Button, Footer, Static
 
-from openhands_cli.refactor.modals.exit_modal import ExitConfirmationModal
-from openhands_cli.refactor.widgets.input_field import InputField
+from openhands_cli.tui.modals.exit_modal import ExitConfirmationModal
+from openhands_cli.tui.widgets.input_field import InputField
 
 
 # Note: pytest-textual-snapshot tests must be synchronous.
@@ -206,19 +206,19 @@ class TestOpenHandsAppSnapshots:
         # Mock the splash content and WORK_DIR to be deterministic
         with (
             patch(
-                "openhands_cli.refactor.textual_app.get_splash_content",
+                "openhands_cli.tui.textual_app.get_splash_content",
                 return_value=mock_splash_content,
             ),
             patch(
-                "openhands_cli.refactor.modals.settings.settings_screen.SettingsScreen.is_initial_setup_required",
+                "openhands_cli.tui.modals.settings.settings_screen.SettingsScreen.is_initial_setup_required",
                 return_value=False,
             ),
             patch(
-                "openhands_cli.refactor.widgets.status_line.WORK_DIR",
+                "openhands_cli.tui.widgets.status_line.WORK_DIR",
                 "/test/workspace",
             ),
         ):
-            from openhands_cli.refactor.textual_app import OpenHandsApp
+            from openhands_cli.tui.textual_app import OpenHandsApp
 
             app = OpenHandsApp(exit_confirmation=False)
             assert snap_compare(app, terminal_size=(120, 40))
@@ -230,7 +230,7 @@ class TestConfirmationModalSnapshots:
     def test_confirmation_settings_modal(self, snap_compare):
         """Snapshot test for the confirmation settings modal."""
         from openhands.sdk.security.confirmation_policy import AlwaysConfirm
-        from openhands_cli.refactor.modals.confirmation_modal import (
+        from openhands_cli.tui.modals.confirmation_modal import (
             ConfirmationSettingsModal,
         )
 
@@ -264,7 +264,7 @@ def run_snapshot_debug():
 
         python -c "from tests.snapshots.test_app_snapshots import ..."
     """
-    from openhands_cli.refactor.textual_app import OpenHandsApp
+    from openhands_cli.tui.textual_app import OpenHandsApp
 
     app = OpenHandsApp(exit_confirmation=True)
     app.run()

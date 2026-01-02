@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 from rich.console import Console
 
 from openhands_cli.argparsers.main_parser import create_main_parser
+from openhands_cli.terminal_compat import check_terminal_compatibility
 from openhands_cli.theme import OPENHANDS_THEME
 from openhands_cli.utils import create_seeded_instructions_from_args
 
@@ -108,7 +109,7 @@ def main() -> None:
             launch_gui_server(mount_cwd=args.mount_cwd, gpu=args.gpu)
         elif args.command == "web":
             # Import web server launcher only when needed
-            from openhands_cli.serve import launch_web_server
+            from openhands_cli.tui.serve import launch_web_server
 
             launch_web_server(host=args.host, port=args.port, debug=args.debug)
         elif args.command == "acp":
@@ -124,7 +125,19 @@ def main() -> None:
             elif args.llm_approve:
                 confirmation_mode = "llm-approve"
 
-            asyncio.run(run_acp_server(initial_confirmation_mode=confirmation_mode))
+            # Handle resume logic for ACP (same as main command)
+            resume_id = handle_resume_logic(args)
+            if resume_id is None and (args.last or args.resume == ""):
+                # Either showed conversation list or had an error
+                return
+
+            asyncio.run(
+                run_acp_server(
+                    initial_confirmation_mode=confirmation_mode,
+                    resume_conversation_id=resume_id,
+                    streaming_enabled=args.streaming,
+                )
+            )
 
         elif args.command == "login":
             from openhands_cli.auth.login_command import run_login_command
@@ -155,6 +168,16 @@ def main() -> None:
             handle_cloud_command(args)
 
         else:
+            compat_result = check_terminal_compatibility(console=console)
+            if not compat_result.is_tty:
+                print(
+                    "OpenHands CLI terminal UI may not work correctly in this "
+                    f"environment: {compat_result.reason}"
+                )
+                print(
+                    "To override Rich's detection, you can set TTY_INTERACTIVE=1 "
+                    "(and optionally TTY_COMPATIBLE=1)."
+                )
             # Handle resume logic (including --last and conversation list)
             resume_id = handle_resume_logic(args)
             if resume_id is None and (args.last or args.resume == ""):
@@ -163,7 +186,7 @@ def main() -> None:
 
             # Use textual-based UI as default (experimental UI is now the default)
             # The --exp flag is kept for compatibility but does the same thing
-            from openhands_cli.refactor.textual_app import main as textual_main
+            from openhands_cli.tui.textual_app import main as textual_main
 
             queued_inputs = create_seeded_instructions_from_args(args)
             conversation_id = textual_main(

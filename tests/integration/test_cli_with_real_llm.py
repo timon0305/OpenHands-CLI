@@ -48,7 +48,7 @@ class TestCLIWithRealLLM:
                 [
                     sys.executable,
                     "-m",
-                    "openhands_cli.simple_main",
+                    "openhands_cli.entrypoint",
                     "--headless",
                     "--task",
                     "hi",
@@ -95,7 +95,7 @@ class TestCLIHeadlessSnapshot:
             [
                 sys.executable,
                 "-m",
-                "openhands_cli.simple_main",
+                "openhands_cli.entrypoint",
                 "--headless",
                 "--task",
                 "Say exactly: TEST_RESPONSE_123",
