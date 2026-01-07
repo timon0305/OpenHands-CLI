@@ -13,12 +13,13 @@ import uuid
 from collections.abc import Iterable
 from typing import ClassVar
 
-from textual import getters, on
+from textual import events, getters, on
 from textual.app import App, ComposeResult, SystemCommand
 from textual.containers import Container, Horizontal, VerticalScroll
 from textual.screen import Screen
 from textual.signal import Signal
-from textual.widgets import Footer, Static
+from textual.widgets import Footer, Input, Static, TextArea
+from textual_autocomplete import AutoComplete
 
 from openhands.sdk.event import ActionEvent
 from openhands.sdk.security.confirmation_policy import (
@@ -35,12 +36,14 @@ from openhands_cli.tui.core.conversation_runner import ConversationRunner
 from openhands_cli.tui.modals import SettingsScreen
 from openhands_cli.tui.modals.confirmation_modal import ConfirmationSettingsModal
 from openhands_cli.tui.modals.exit_modal import ExitConfirmationModal
-from openhands_cli.tui.panels.confirmation_panel import ConfirmationSidePanel
+from openhands_cli.tui.panels.confirmation_panel import InlineConfirmationPanel
 from openhands_cli.tui.panels.mcp_side_panel import MCPSidePanel
-from openhands_cli.tui.widgets.input_field import InputField
-from openhands_cli.tui.widgets.non_clickable_collapsible import (
-    NonClickableCollapsible,
+from openhands_cli.tui.widgets.collapsible import (
+    Collapsible,
+    CollapsibleNavigationMixin,
+    CollapsibleTitle,
 )
+from openhands_cli.tui.widgets.input_field import InputField
 from openhands_cli.tui.widgets.richlog_visualizer import ConversationVisualizer
 from openhands_cli.tui.widgets.status_line import (
     InfoStatusLine,
@@ -50,13 +53,13 @@ from openhands_cli.user_actions.types import UserConfirmation
 from openhands_cli.utils import json_callback
 
 
-class OpenHandsApp(App):
+class OpenHandsApp(CollapsibleNavigationMixin, App):
     """A minimal textual app for OpenHands CLI with scrollable main display."""
 
     # Key bindings
     BINDINGS: ClassVar = [
         ("ctrl+l", "toggle_input_mode", "Toggle single/multi-line input"),
-        ("ctrl+o", "expand_all", "Expand the cells"),
+        ("ctrl+o", "toggle_cells", "Toggle Cells"),
         ("ctrl+j", "submit_textarea", "Submit multi-line input"),
         ("escape", "pause_conversation", "Pause the conversation"),
         ("ctrl+q", "request_quit", "Quit the application"),
@@ -126,7 +129,7 @@ class OpenHandsApp(App):
         )
 
         # Confirmation panel tracking
-        self.confirmation_panel: ConfirmationSidePanel | None = None
+        self.confirmation_panel: InlineConfirmationPanel | None = None
 
         # MCP panel tracking
         self.mcp_panel: MCPSidePanel | None = None
@@ -362,7 +365,9 @@ class OpenHandsApp(App):
         user_input = self.pending_inputs.pop(0)
 
         # Add the user message to the main display as a Static widget
-        user_message_widget = Static(f"> {user_input}", classes="user-message")
+        user_message_widget = Static(
+            f"> {user_input}", classes="user-message", markup=False
+        )
         self.main_display.mount(user_message_widget)
         self.main_display.scroll_end(animate=False)
 
@@ -376,7 +381,9 @@ class OpenHandsApp(App):
             return
 
         # Add the user message to the main display as a Static widget
-        user_message_widget = Static(f"> {content}", classes="user-message")
+        user_message_widget = Static(
+            f"> {content}", classes="user-message", markup=False
+        )
         await self.main_display.mount(user_message_widget)
         self.main_display.scroll_end(animate=False)
         # Force immediate refresh to show the message without delay
@@ -441,16 +448,55 @@ class OpenHandsApp(App):
         """Action to handle Ctrl+Q key binding."""
         self._handle_exit()
 
-    def action_expand_all(self) -> None:
-        """Action to handle Ctrl+E key binding - toggle expand/collapse all
-        collapsible widgets."""
-        collapsibles = self.main_display.query(NonClickableCollapsible)
+    def action_toggle_cells(self) -> None:
+        """Action to handle Ctrl+O key binding.
 
-        # Check if any are expanded - if so, collapse all; otherwise expand all
+        Collapses all cells if any are expanded, otherwise expands all cells.
+        This provides a quick way to minimize or maximize all content at once.
+        """
+        collapsibles = self.main_display.query(Collapsible)
+
+        # If any cell is expanded, collapse all; otherwise expand all
         any_expanded = any(not collapsible.collapsed for collapsible in collapsibles)
 
         for collapsible in collapsibles:
             collapsible.collapsed = any_expanded
+
+    def on_key(self, event: events.Key) -> None:
+        """Handle keyboard navigation.
+
+        - Auto-focus input when user starts typing (allows clicking cells without
+          losing typing context)
+        - When Tab is pressed from input area, focus the most recent (last) cell
+          instead of the first one (unless autocomplete is showing)
+        """
+        # Handle Tab from input area - focus most recent cell
+        # Skip if autocomplete dropdown is visible (Tab is used for selection)
+        if event.key == "tab" and isinstance(self.focused, Input | TextArea):
+            if not self._is_autocomplete_showing():
+                collapsibles = list(self.main_display.query(Collapsible))
+                if collapsibles:
+                    # Focus the last (most recent) collapsible's title
+                    last_collapsible = collapsibles[-1]
+                    last_title = last_collapsible.query_one(CollapsibleTitle)
+                    last_title.focus()
+                    last_collapsible.scroll_visible()
+                    event.stop()
+                    event.prevent_default()
+                    return
+
+        # Auto-focus input when user types printable characters
+        if event.is_printable and not isinstance(self.focused, Input | TextArea):
+            self.input_field.focus_input()
+
+    def _is_autocomplete_showing(self) -> bool:
+        """Check if the autocomplete dropdown is currently visible.
+
+        This prevents Tab key interception when user wants to select an
+        autocomplete suggestion.
+        """
+        autocompletes = self.query(AutoComplete)
+        return any(ac.display for ac in autocompletes)
 
     def action_pause_conversation(self) -> None:
         """Action to handle Esc key binding - pause the running conversation."""
@@ -517,7 +563,12 @@ class OpenHandsApp(App):
     def _handle_confirmation_request(
         self, pending_actions: list[ActionEvent]
     ) -> UserConfirmation:
-        """Handle confirmation request by showing the side panel.
+        """Handle confirmation request by showing an inline panel in the main display.
+
+        The inline confirmation panel is mounted in the main_display area,
+        underneath the latest action event collapsible. Since the action details
+        are already visible in the collapsible above, this panel only shows
+        the confirmation options.
 
         Args:
             pending_actions: List of pending actions that need confirmation
@@ -533,7 +584,7 @@ class OpenHandsApp(App):
         decision_future: Future[UserConfirmation] = Future()
 
         def show_confirmation_panel():
-            """Show the confirmation panel in the UI thread."""
+            """Show the inline confirmation panel in the UI thread."""
             try:
                 # Remove any existing confirmation panel
                 if self.confirmation_panel:
@@ -550,11 +601,14 @@ class OpenHandsApp(App):
                     if not decision_future.done():
                         decision_future.set_result(decision)
 
-                # Create and mount the confirmation panel
-                self.confirmation_panel = ConfirmationSidePanel(
-                    pending_actions, on_confirmation_decision
+                # Create and mount the inline confirmation panel in main_display
+                # This places it underneath the latest action event collapsible
+                self.confirmation_panel = InlineConfirmationPanel(
+                    len(pending_actions), on_confirmation_decision
                 )
-                self.content_area.mount(self.confirmation_panel)
+                self.main_display.mount(self.confirmation_panel)
+                # Scroll to show the confirmation panel
+                self.main_display.scroll_end(animate=False)
 
             except Exception:
                 # If there's an error, default to DEFER

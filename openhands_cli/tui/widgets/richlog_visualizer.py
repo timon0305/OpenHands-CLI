@@ -21,8 +21,8 @@ from openhands.sdk.event.condenser import Condensation, CondensationRequest
 from openhands.sdk.event.conversation_error import ConversationErrorEvent
 from openhands_cli.stores import CliSettings
 from openhands_cli.theme import OPENHANDS_THEME
-from openhands_cli.tui.widgets.non_clickable_collapsible import (
-    NonClickableCollapsible,
+from openhands_cli.tui.widgets.collapsible import (
+    Collapsible,
 )
 
 
@@ -111,7 +111,7 @@ class ConversationVisualizer(ConversationVisualizerBase):
                 # We're in a background thread, use call_from_thread
                 self._app.call_from_thread(self._add_widget_to_ui, collapsible_widget)
 
-    def _add_widget_to_ui(self, widget: NonClickableCollapsible) -> None:
+    def _add_widget_to_ui(self, widget: Collapsible) -> None:
         """Add a widget to the UI (must be called from main thread)."""
         self._container.mount(widget)
         # Automatically scroll to the bottom to show the newly added widget
@@ -232,7 +232,33 @@ class ConversationVisualizer(ConversationVisualizerBase):
         # Final fallback
         return fallback_title
 
-    def _create_event_collapsible(self, event: Event) -> NonClickableCollapsible | None:
+    @property
+    def _default_collapsed(self) -> bool:
+        """Get the default collapsed state for new cells based on settings.
+
+        Returns True if cells should start collapsed, False if expanded.
+        """
+        return not self.cli_settings.default_cells_expanded
+
+    def _make_collapsible(self, content: str, title: str, event: Event) -> Collapsible:
+        """Create a Collapsible widget with standard settings.
+
+        Args:
+            content: The content string to display in the collapsible.
+            title: The title for the collapsible header.
+            event: The event used to determine border color.
+
+        Returns:
+            A configured Collapsible widget.
+        """
+        return Collapsible(
+            content,
+            title=title,
+            collapsed=self._default_collapsed,
+            border_color=_get_event_border_color(event),
+        )
+
+    def _create_event_collapsible(self, event: Event) -> Collapsible | None:
         """Create a Collapsible widget for the event with appropriate styling."""
         # Use the event's visualize property for content
         content = event.visualize
@@ -261,27 +287,16 @@ class ConversationVisualizer(ConversationVisualizerBase):
             if metrics:
                 content_string = f"{content_string}\n\n{metrics}"
 
-            return NonClickableCollapsible(
-                content_string,
-                title=title,
-                collapsed=False,  # Start expanded by default
-                border_color=_get_event_border_color(event),
-            )
+            return self._make_collapsible(content_string, title, event)
         elif isinstance(event, ObservationEvent):
             title = self._extract_meaningful_title(event, "Observation")
-            return NonClickableCollapsible(
-                self._escape_rich_markup(str(content)),
-                title=title,
-                collapsed=False,  # Start expanded for observations
-                border_color=_get_event_border_color(event),
+            return self._make_collapsible(
+                self._escape_rich_markup(str(content)), title, event
             )
         elif isinstance(event, UserRejectObservation):
             title = self._extract_meaningful_title(event, "User Rejected Action")
-            return NonClickableCollapsible(
-                self._escape_rich_markup(str(content)),
-                title=title,
-                collapsed=False,  # Start expanded by default
-                border_color=_get_event_border_color(event),
+            return self._make_collapsible(
+                self._escape_rich_markup(str(content)), title, event
             )
         elif isinstance(event, MessageEvent):
             if (
@@ -303,12 +318,7 @@ class ConversationVisualizer(ConversationVisualizerBase):
             if metrics and event.llm_message.role == "assistant":
                 content_string = f"{content_string}\n\n{metrics}"
 
-            return NonClickableCollapsible(
-                content_string,
-                title=title,
-                collapsed=False,  # Start expanded by default
-                border_color=_get_event_border_color(event),
-            )
+            return self._make_collapsible(content_string, title, event)
         elif isinstance(event, AgentErrorEvent):
             title = self._extract_meaningful_title(event, "Agent Error")
             content_string = self._escape_rich_markup(str(content))
@@ -316,12 +326,7 @@ class ConversationVisualizer(ConversationVisualizerBase):
             if metrics:
                 content_string = f"{content_string}\n\n{metrics}"
 
-            return NonClickableCollapsible(
-                content_string,
-                title=title,
-                collapsed=False,  # Start expanded by default
-                border_color=_get_event_border_color(event),
-            )
+            return self._make_collapsible(content_string, title, event)
         elif isinstance(event, ConversationErrorEvent):
             title = self._extract_meaningful_title(event, "Conversation Error")
             content_string = self._escape_rich_markup(str(content))
@@ -329,19 +334,11 @@ class ConversationVisualizer(ConversationVisualizerBase):
             if metrics:
                 content_string = f"{content_string}\n\n{metrics}"
 
-            return NonClickableCollapsible(
-                content_string,
-                title=title,
-                collapsed=False,  # Start expanded by default
-                border_color=_get_event_border_color(event),
-            )
+            return self._make_collapsible(content_string, title, event)
         elif isinstance(event, PauseEvent):
             title = self._extract_meaningful_title(event, "User Paused")
-            return NonClickableCollapsible(
-                self._escape_rich_markup(str(content)),
-                title=title,
-                collapsed=False,  # Start expanded for pauses
-                border_color=_get_event_border_color(event),
+            return self._make_collapsible(
+                self._escape_rich_markup(str(content)), title, event
             )
         elif isinstance(event, Condensation):
             title = self._extract_meaningful_title(event, "Condensation")
@@ -350,12 +347,7 @@ class ConversationVisualizer(ConversationVisualizerBase):
             if metrics:
                 content_string = f"{content_string}\n\n{metrics}"
 
-            return NonClickableCollapsible(
-                content_string,
-                title=title,
-                collapsed=False,  # Start expanded for condensations
-                border_color=_get_event_border_color(event),
-            )
+            return self._make_collapsible(content_string, title, event)
         else:
             # Fallback for unknown event types
             title = self._extract_meaningful_title(
@@ -364,12 +356,7 @@ class ConversationVisualizer(ConversationVisualizerBase):
             content_string = (
                 f"{self._escape_rich_markup(str(content))}\n\nSource: {event.source}"
             )
-            return NonClickableCollapsible(
-                content_string,
-                title=title,
-                collapsed=False,  # Start expanded for unknown events
-                border_color=_get_event_border_color(event),
-            )
+            return self._make_collapsible(content_string, title, event)
 
     def _format_metrics_subtitle(self) -> str | None:
         """Format LLM metrics as a visually appealing subtitle string."""

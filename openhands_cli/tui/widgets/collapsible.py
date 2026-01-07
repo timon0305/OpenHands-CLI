@@ -1,13 +1,15 @@
-"""Custom non-clickable Collapsible widget for OpenHands CLI.
+"""Collapsible widget for OpenHands CLI.
 
-This module provides a Collapsible widget that cannot be toggled by clicking,
-only through programmatic control (like Ctrl+E). It also has a dimmer gray background.
+This module provides a Collapsible widget that can be toggled by clicking on the
+title or pressing Enter when focused. It also supports programmatic control via
+Ctrl+O to toggle all cells at once.
 """
 
 import platform
-from typing import Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, Protocol
 
 import pyperclip
+from textual import events
 from textual.app import ComposeResult
 from textual.binding import Binding, BindingType
 from textual.containers import Container, Horizontal
@@ -18,35 +20,55 @@ from textual.widget import Widget
 from textual.widgets import Button, Static
 
 
+if TYPE_CHECKING:
+    from textual.dom import DOMNode
+
+
 def _is_linux() -> bool:
     """Check if the current platform is Linux."""
     return platform.system() == "Linux"
 
 
-class NonClickableCollapsibleTitle(Container, can_focus=False):
-    """Title and symbol for the NonClickableCollapsible that ignores click events."""
+class CollapsibleTitle(Container, can_focus=True):
+    """Title and symbol for the Collapsible widget.
+
+    Supports click-to-toggle and keyboard navigation (Enter to toggle).
+    Emits Navigate messages for arrow key navigation, which should be
+    handled by the parent App that owns the list of collapsibles.
+    """
 
     ALLOW_SELECT = False
     DEFAULT_CSS = """
-    NonClickableCollapsibleTitle {
+    CollapsibleTitle {
         width: 100%;
         height: auto;
         padding: 0 1;
         text-style: $block-cursor-blurred-text-style;
         color: $block-cursor-blurred-foreground;
+
+        &:hover {
+            background: $block-hover-background;
+            color: $foreground;
+        }
+
+        &:focus {
+            text-style: $block-cursor-text-style;
+            background: $block-cursor-background;
+            color: $block-cursor-foreground;
+        }
     }
 
-    NonClickableCollapsibleTitle Horizontal {
+    CollapsibleTitle Horizontal {
         width: 100%;
         height: auto;
     }
 
-    NonClickableCollapsibleTitle .title-text {
+    CollapsibleTitle .title-text {
         width: 1fr;
         height: auto;
     }
 
-    NonClickableCollapsibleTitle .copy-button {
+    CollapsibleTitle .copy-button {
         width: auto;
         height: 1;
         min-width: 4;
@@ -57,13 +79,13 @@ class NonClickableCollapsibleTitle(Container, can_focus=False):
         text-style: none;
     }
 
-    NonClickableCollapsibleTitle .copy-button:hover {
+    CollapsibleTitle .copy-button:hover {
         background: $surface-lighten-1;
         color: $text;
         text-style: bold;
     }
 
-    NonClickableCollapsibleTitle .copy-button:focus {
+    CollapsibleTitle .copy-button:focus {
         background: $surface-lighten-2;
         color: $text;
         text-style: bold;
@@ -71,7 +93,9 @@ class NonClickableCollapsibleTitle(Container, can_focus=False):
     """
 
     BINDINGS: ClassVar[list[BindingType]] = [
-        Binding("enter", "toggle_collapsible", "Toggle collapsible", show=False)
+        Binding("enter", "toggle_collapsible", "Toggle collapsible", show=False),
+        Binding("up", "navigate_previous", "Previous cell", show=False),
+        Binding("down", "navigate_next", "Next cell", show=False),
     ]
 
     collapsed = reactive(True)
@@ -97,6 +121,61 @@ class NonClickableCollapsibleTitle(Container, can_focus=False):
 
     class CopyRequested(Message):
         """Request to copy content."""
+
+    class Toggle(Message):
+        """Request to toggle the collapsible state."""
+
+    class Navigate(Message):
+        """Request to navigate to a sibling cell.
+
+        This message bubbles up to the App, which owns the list of collapsibles
+        and can efficiently handle navigation using direct index lookup.
+
+        The message includes the source collapsible reference, eliminating the
+        need for the App to search through all collapsibles to find which one
+        is currently focused.
+        """
+
+        def __init__(self, direction: int, collapsible: "Collapsible") -> None:
+            """Initialize Navigate message.
+
+            Args:
+                direction: -1 for previous (up), 1 for next (down)
+                collapsible: The source Collapsible widget requesting navigation
+            """
+            super().__init__()
+            self.direction = direction
+            self.collapsible = collapsible
+
+    async def _on_click(self, event: events.Click) -> None:
+        """Toggle collapsible when title area is clicked."""
+        event.stop()
+        self.post_message(self.Toggle())
+
+    def action_toggle_collapsible(self) -> None:
+        """Toggle the collapsible when Enter is pressed."""
+        self.post_message(self.Toggle())
+
+    def _find_parent_collapsible(self) -> "Collapsible | None":
+        """Find the parent Collapsible widget by walking up the DOM tree."""
+        node = self.parent
+        while node is not None:
+            if isinstance(node, Collapsible):
+                return node
+            node = node.parent
+        return None
+
+    def action_navigate_previous(self) -> None:
+        """Request navigation to previous cell (up arrow)."""
+        parent = self._find_parent_collapsible()
+        if parent is not None:
+            self.post_message(self.Navigate(direction=-1, collapsible=parent))
+
+    def action_navigate_next(self) -> None:
+        """Request navigation to next cell (down arrow)."""
+        parent = self._find_parent_collapsible()
+        if parent is not None:
+            self.post_message(self.Navigate(direction=1, collapsible=parent))
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button press - post CopyRequested when copy button is clicked."""
@@ -132,9 +211,9 @@ class NonClickableCollapsibleTitle(Container, can_focus=False):
         self._update_label()
 
 
-class NonClickableCollapsibleContents(Container):
+class CollapsibleContents(Container):
     DEFAULT_CSS = """
-    NonClickableCollapsibleContents {
+    CollapsibleContents {
         width: 100%;
         height: auto;
         padding: 1 0 0 3;
@@ -142,15 +221,22 @@ class NonClickableCollapsibleContents(Container):
     """
 
 
-class NonClickableCollapsible(Widget):
-    """A collapsible container that cannot be toggled by clicking."""
+class Collapsible(Widget):
+    """A collapsible container with click and keyboard toggle support.
+
+    Can be toggled by:
+    - Clicking the title bar
+    - Pressing Enter when the title is focused
+    - Arrow keys to navigate between cells (handled by parent App)
+    - Ctrl+O to toggle all cells at once (handled by parent App)
+    """
 
     ALLOW_MAXIMIZE = True
     collapsed = reactive(True, init=False)
     title = reactive("Toggle")
 
     DEFAULT_CSS = """
-    NonClickableCollapsible {
+    Collapsible {
         width: 1fr;
         height: auto;
         background: $background;
@@ -161,7 +247,7 @@ class NonClickableCollapsible(Widget):
             background-tint: $foreground 3%;
         }
 
-        &.-collapsed > NonClickableCollapsibleContents {
+        &.-collapsed > CollapsibleContents {
             display: none;
         }
     }
@@ -181,7 +267,7 @@ class NonClickableCollapsible(Widget):
         classes: str | None = None,
         disabled: bool = False,
     ) -> None:
-        """Initialize a NonClickableCollapsible widget.
+        """Initialize a Collapsible widget.
 
         Args:
             content: Content that will be collapsed/expanded (converted to string).
@@ -196,7 +282,7 @@ class NonClickableCollapsible(Widget):
             disabled: Whether the collapsible is disabled or not.
         """
         super().__init__(name=name, id=id, classes=classes, disabled=disabled)
-        self._title = NonClickableCollapsibleTitle(
+        self._title = CollapsibleTitle(
             label=title,
             collapsed_symbol=collapsed_symbol,
             expanded_symbol=expanded_symbol,
@@ -210,8 +296,13 @@ class NonClickableCollapsible(Widget):
         self._watch_collapsed(collapsed)
         self.styles.border_left = ("thick", border_color)
 
-    def _on_non_clickable_collapsible_title_copy_requested(
-        self, event: NonClickableCollapsibleTitle.CopyRequested
+    def _on_collapsible_title_toggle(self, event: CollapsibleTitle.Toggle) -> None:
+        """Handle toggle request from title click or keyboard."""
+        event.stop()
+        self.collapsed = not self.collapsed
+
+    def _on_collapsible_title_copy_requested(
+        self, event: CollapsibleTitle.CopyRequested
     ) -> None:
         """Handle copy request from the title.
 
@@ -271,5 +362,60 @@ class NonClickableCollapsible(Widget):
 
     def compose(self) -> ComposeResult:
         yield self._title
-        with NonClickableCollapsibleContents():
+        with CollapsibleContents():
             yield self._content_widget
+
+
+class _HasQueryOne(Protocol):
+    """Protocol for classes that support query_one method (e.g., Textual App)."""
+
+    def query_one(self, selector: str) -> "DOMNode": ...
+
+
+class CollapsibleNavigationMixin:
+    """Mixin providing navigation handler for apps with Collapsible widgets.
+
+    Apps that contain Collapsible widgets can use this mixin to handle
+    arrow key navigation between cells. The app must have a container
+    with id="main_display" containing the Collapsible widgets.
+
+    Usage:
+        class MyApp(CollapsibleNavigationMixin, App):
+            ...
+    """
+
+    def on_collapsible_title_navigate(
+        self: _HasQueryOne, event: CollapsibleTitle.Navigate
+    ) -> None:
+        """Handle navigation between collapsible cells.
+
+        The Navigate message includes the source collapsible, so we can
+        directly find its index without searching through all cells.
+        """
+        event.stop()
+
+        # Get all collapsibles as a list for index-based navigation
+        main_display = self.query_one("#main_display")
+        collapsibles = list(main_display.query(Collapsible))  # type: ignore[union-attr]
+        if not collapsibles:
+            return
+
+        # Use the collapsible reference from the event directly
+        try:
+            current_index = collapsibles.index(event.collapsible)
+        except ValueError:
+            # Collapsible not in list (shouldn't happen, but be safe)
+            return
+
+        # Calculate target index
+        target_index = current_index + event.direction
+
+        # Check bounds
+        if target_index < 0 or target_index >= len(collapsibles):
+            return
+
+        # Focus the target collapsible's title
+        target = collapsibles[target_index]
+        target_title = target.query_one(CollapsibleTitle)
+        target_title.focus()
+        target.scroll_visible()
