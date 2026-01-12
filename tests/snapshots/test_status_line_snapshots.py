@@ -5,6 +5,7 @@ the input box content (accounting for the input box border).
 """
 
 import types
+from unittest.mock import patch
 
 from textual.app import App, ComposeResult
 from textual.containers import Vertical
@@ -13,6 +14,10 @@ from textual.widgets import Input
 
 from openhands_cli.theme import OPENHANDS_THEME
 from openhands_cli.tui.widgets.status_line import InfoStatusLine, WorkingStatusLine
+
+
+# Fixed work directory for consistent snapshots across environments
+MOCK_WORK_DIR = "/home/user/project"
 
 
 class StatusLineTestApp(App):
@@ -71,9 +76,9 @@ class StatusLineTestApp(App):
 
     def compose(self) -> ComposeResult:
         with Vertical(id="input_area"):
-            yield WorkingStatusLine(app=self)
+            yield WorkingStatusLine(app=self)  # type: ignore[arg-type]
             yield Input(placeholder="Type your message...", id="test_input")
-            yield InfoStatusLine(app=self)
+            yield InfoStatusLine(app=self)  # type: ignore[arg-type]
 
 
 class TestStatusLineSnapshots:
@@ -85,8 +90,14 @@ class TestStatusLineSnapshots:
         The input box has a border which adds visual offset. The status line
         should have matching left padding so text aligns properly.
         """
-        assert snap_compare(StatusLineTestApp(), terminal_size=(100, 10))
+        with patch(
+            "openhands_cli.tui.widgets.status_line.WORK_DIR", MOCK_WORK_DIR
+        ):
+            assert snap_compare(StatusLineTestApp(), terminal_size=(100, 10))
 
     def test_status_line_alignment_narrow_terminal(self, snap_compare):
         """Verify status line alignment in narrow terminal."""
-        assert snap_compare(StatusLineTestApp(), terminal_size=(60, 10))
+        with patch(
+            "openhands_cli.tui.widgets.status_line.WORK_DIR", MOCK_WORK_DIR
+        ):
+            assert snap_compare(StatusLineTestApp(), terminal_size=(60, 10))

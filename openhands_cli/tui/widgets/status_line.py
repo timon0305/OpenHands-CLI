@@ -233,7 +233,7 @@ class InfoStatusLine(Static):
         left_part = f"{self.mode_indicator} • {self.work_dir_display}"
         metrics_display = self._format_metrics_display()
 
-        # Calculate available width for spacing (account for padding: 3 left + 1 right = 4)
+        # Calculate available width for spacing (padding: 3 left + 1 right = 4)
         try:
             total_width = self.size.width - 4
         except AttributeError:
