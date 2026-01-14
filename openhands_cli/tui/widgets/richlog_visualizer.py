@@ -127,21 +127,21 @@ class ConversationVisualizer(ConversationVisualizerBase):
 
     def _do_refresh_plan_panel(self) -> None:
         """Refresh the plan panel (must be called from main thread)."""
-        plan_panel = self._app.plan_panel
+        right_panel = self._app.right_side_panel
         auto_open = self.cli_settings.auto_open_plan_panel
 
         # Panel is already open, refresh contents
-        if plan_panel.is_on_screen:
-            plan_panel.refresh_from_disk()
+        if right_panel.is_on_screen:
+            right_panel.refresh_from_disk()
             return
 
         # Not mounted: only open if user opted in
         # and hasn't dismissed it once already
-        if not auto_open or plan_panel.user_dismissed:
+        if not auto_open or right_panel.user_dismissed:
             return
 
-        # Open the plan panel
-        plan_panel.toggle()
+        # Open the right side panel
+        right_panel.toggle()
 
     def on_event(self, event: Event) -> None:
         """Main event handler that creates widgets for events."""

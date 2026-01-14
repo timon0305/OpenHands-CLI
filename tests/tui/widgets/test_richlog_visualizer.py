@@ -622,7 +622,7 @@ class TestPlanPanelIntegration:
         from textual.containers import Horizontal, VerticalScroll
         from textual.widgets import Static
 
-        from openhands_cli.tui.panels.plan_side_panel import PlanSidePanel
+        from openhands_cli.tui.panels.right_side_panel import RightSidePanel
 
         class TestApp(App):
             CSS = """
@@ -633,7 +633,7 @@ class TestPlanPanelIntegration:
             def __init__(self, **kwargs):
                 super().__init__(**kwargs)
                 self.conversation_dir = "/test/conversation/dir"
-                self.plan_panel: PlanSidePanel | None = None
+                self.right_side_panel: RightSidePanel | None = None
 
             def compose(self):
                 with Horizontal(id="content_area"):
@@ -641,7 +641,7 @@ class TestPlanPanelIntegration:
                         yield Static("Content")
 
             def on_mount(self):
-                self.plan_panel = PlanSidePanel(self)  # type: ignore[arg-type]
+                self.right_side_panel = RightSidePanel(self)  # type: ignore[arg-type]
 
         app = TestApp()
         async with app.run_test() as pilot:
@@ -656,7 +656,7 @@ class TestPlanPanelIntegration:
                 return_value=CliSettings(auto_open_plan_panel=auto_open_enabled),
             ):
                 visualizer._cli_settings = None  # Clear cache
-                with patch.object(app.plan_panel, "toggle") as mock_toggle:
+                with patch.object(app.right_side_panel, "toggle") as mock_toggle:
                     visualizer._do_refresh_plan_panel()
 
                     if auto_open_enabled:
@@ -675,7 +675,7 @@ class TestPlanPanelIntegration:
         from textual.containers import Horizontal, VerticalScroll
         from textual.widgets import Static
 
-        from openhands_cli.tui.panels.plan_side_panel import PlanSidePanel
+        from openhands_cli.tui.panels.right_side_panel import RightSidePanel
 
         class TestApp(App):
             CSS = """
@@ -686,7 +686,7 @@ class TestPlanPanelIntegration:
             def __init__(self, **kwargs):
                 super().__init__(**kwargs)
                 self.conversation_dir = "/test/conversation/dir"
-                self.plan_panel: PlanSidePanel | None = None
+                self.right_side_panel: RightSidePanel | None = None
 
             def compose(self):
                 with Horizontal(id="content_area"):
@@ -694,7 +694,7 @@ class TestPlanPanelIntegration:
                         yield Static("Content")
 
             def on_mount(self):
-                self.plan_panel = PlanSidePanel(self)  # type: ignore[arg-type]
+                self.right_side_panel = RightSidePanel(self)  # type: ignore[arg-type]
 
         app = TestApp()
         async with app.run_test() as pilot:
@@ -704,12 +704,14 @@ class TestPlanPanelIntegration:
 
             # Mock that panel is already on screen
             with patch.object(
-                type(app.plan_panel), "is_on_screen", new_callable=PropertyMock
+                type(app.right_side_panel), "is_on_screen", new_callable=PropertyMock
             ) as mock_is_on_screen:
                 mock_is_on_screen.return_value = True
 
                 # Mock refresh_from_disk to verify it gets called
-                with patch.object(app.plan_panel, "refresh_from_disk") as mock_refresh:
+                with patch.object(
+                    app.right_side_panel, "refresh_from_disk"
+                ) as mock_refresh:
                     # Even with auto_open disabled, existing panel should refresh
                     with patch.object(
                         CliSettings,
@@ -730,7 +732,7 @@ class TestPlanPanelIntegration:
         from textual.containers import Horizontal, VerticalScroll
         from textual.widgets import Static
 
-        from openhands_cli.tui.panels.plan_side_panel import PlanSidePanel
+        from openhands_cli.tui.panels.right_side_panel import RightSidePanel
 
         class TestApp(App):
             CSS = """
@@ -741,7 +743,7 @@ class TestPlanPanelIntegration:
             def __init__(self, **kwargs):
                 super().__init__(**kwargs)
                 self.conversation_dir = "/test/conversation/dir"
-                self.plan_panel: PlanSidePanel | None = None
+                self.right_side_panel: RightSidePanel | None = None
 
             def compose(self):
                 with Horizontal(id="content_area"):
@@ -749,7 +751,7 @@ class TestPlanPanelIntegration:
                         yield Static("Content")
 
             def on_mount(self):
-                self.plan_panel = PlanSidePanel(self)  # type: ignore[arg-type]
+                self.right_side_panel = RightSidePanel(self)  # type: ignore[arg-type]
 
         app = TestApp()
         async with app.run_test() as pilot:
@@ -758,8 +760,8 @@ class TestPlanPanelIntegration:
             visualizer = ConversationVisualizer(container, app)  # type: ignore[arg-type]
 
             # Ensure panel is not on screen
-            assert app.plan_panel is not None
-            assert app.plan_panel.is_on_screen is False
+            assert app.right_side_panel is not None
+            assert app.right_side_panel.is_on_screen is False
 
             with patch.object(
                 CliSettings,
@@ -767,6 +769,6 @@ class TestPlanPanelIntegration:
                 return_value=CliSettings(auto_open_plan_panel=True),
             ):
                 visualizer._cli_settings = None  # Clear cache
-                with patch.object(app.plan_panel, "toggle") as mock_toggle:
+                with patch.object(app.right_side_panel, "toggle") as mock_toggle:
                     visualizer._do_refresh_plan_panel()
                     mock_toggle.assert_called_once()

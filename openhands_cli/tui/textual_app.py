@@ -40,7 +40,7 @@ from openhands_cli.tui.modals.confirmation_modal import ConfirmationSettingsModa
 from openhands_cli.tui.modals.exit_modal import ExitConfirmationModal
 from openhands_cli.tui.panels.confirmation_panel import InlineConfirmationPanel
 from openhands_cli.tui.panels.mcp_side_panel import MCPSidePanel
-from openhands_cli.tui.panels.plan_side_panel import PlanSidePanel
+from openhands_cli.tui.panels.right_side_panel import RightSidePanel
 from openhands_cli.tui.widgets.collapsible import (
     Collapsible,
     CollapsibleNavigationMixin,
@@ -140,7 +140,8 @@ class OpenHandsApp(CollapsibleNavigationMixin, App):
         # MCP panel tracking
         self.mcp_panel: MCPSidePanel | None = None
 
-        self.plan_panel: PlanSidePanel = PlanSidePanel(self)
+        # Right side panel (contains plan panel and ask agent panel)
+        self.right_side_panel: RightSidePanel = RightSidePanel(self)
 
         # Register the custom theme
         self.register_theme(OPENHANDS_THEME)
@@ -186,8 +187,8 @@ class OpenHandsApp(CollapsibleNavigationMixin, App):
         )
         yield SystemCommand(
             "PLAN",
-            "View agent plan",
-            lambda: self.plan_panel.toggle(),
+            "View agent panel",
+            lambda: self.right_side_panel.toggle(),
         )
         yield SystemCommand("SETTINGS", "Configure settings", self.action_open_settings)
 
