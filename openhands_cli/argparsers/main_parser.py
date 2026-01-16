@@ -1,6 +1,7 @@
 """Main argument parser for OpenHands CLI."""
 
 import argparse
+import os
 
 from openhands_cli import __version__
 from openhands_cli.argparsers.acp_parser import add_acp_parser
@@ -11,6 +12,10 @@ from openhands_cli.argparsers.serve_parser import add_serve_parser
 from openhands_cli.argparsers.util import add_confirmation_mode_args, add_resume_args
 from openhands_cli.argparsers.view_parser import add_view_parser
 from openhands_cli.argparsers.web_parser import add_web_parser
+
+
+# Default cloud URL
+DEFAULT_CLOUD_URL = os.getenv("OPENHANDS_CLOUD_URL", "https://app.all-hands.dev")
 
 
 def create_main_parser() -> argparse.ArgumentParser:
@@ -98,6 +103,16 @@ def create_main_parser() -> argparse.ArgumentParser:
         "--exit-without-confirmation",
         action="store_true",
         help="Exit the application without showing confirmation dialog",
+    )
+
+    parser.add_argument(
+        "--cloud-url",
+        type=str,
+        default=DEFAULT_CLOUD_URL,
+        help=(
+            f"OpenHands Cloud URL (default: {DEFAULT_CLOUD_URL}, "
+            "configurable via OPENHANDS_CLOUD_URL env var)"
+        ),
     )
 
     # Subcommands

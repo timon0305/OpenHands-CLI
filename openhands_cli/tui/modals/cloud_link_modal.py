@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import os
 import webbrowser
 from collections.abc import Callable
 
@@ -17,10 +16,6 @@ from openhands_cli.auth.device_flow import DeviceFlowClient, DeviceFlowError
 from openhands_cli.auth.token_storage import TokenStorage
 
 
-# Default cloud URL (same as in auth_parser.py)
-DEFAULT_CLOUD_URL = os.getenv("OPENHANDS_CLOUD_URL", "https://app.all-hands.dev")
-
-
 class CloudLinkModal(ModalScreen):
     """Modal for linking to OpenHands Cloud."""
 
@@ -30,6 +25,7 @@ class CloudLinkModal(ModalScreen):
         self,
         is_connected: bool = False,
         on_link_complete: Callable[[bool], None] | None = None,
+        cloud_url: str | None = None,
         **kwargs,
     ):
         """Initialize the cloud link modal.
@@ -37,11 +33,17 @@ class CloudLinkModal(ModalScreen):
         Args:
             is_connected: Whether currently connected to cloud
             on_link_complete: Callback when linking completes (success: bool)
+            cloud_url: OpenHands Cloud URL for authentication
         """
         super().__init__(**kwargs)
         self.is_connected = is_connected
         self.on_link_complete = on_link_complete
         self._linking_in_progress = False
+
+        # Import default here to avoid circular imports
+        from openhands_cli.argparsers.main_parser import DEFAULT_CLOUD_URL
+
+        self.cloud_url = cloud_url or DEFAULT_CLOUD_URL
 
     def compose(self) -> ComposeResult:
         with Grid(id="cloud_dialog"):
@@ -132,7 +134,7 @@ class CloudLinkModal(ModalScreen):
                 return
 
             # Start device flow authentication
-            client = DeviceFlowClient(DEFAULT_CLOUD_URL)
+            client = DeviceFlowClient(self.cloud_url)
 
             status_message.update("Starting authentication...")
             device_code, user_code, verification_uri, interval = (
@@ -187,7 +189,7 @@ class CloudLinkModal(ModalScreen):
 
     async def _sync_settings(self, api_key: str) -> None:
         """Sync settings from cloud."""
-        client = OpenHandsApiClient(DEFAULT_CLOUD_URL, api_key)
+        client = OpenHandsApiClient(self.cloud_url, api_key)
 
         try:
             # Get LLM API key

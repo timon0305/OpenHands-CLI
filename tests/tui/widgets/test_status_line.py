@@ -25,6 +25,8 @@ def dummy_app() -> object:
     )
     # For metrics display
     app.conversation_runner = None
+    # For cloud status
+    app.cloud_url = "https://app.all-hands.dev"
     return app
 
 

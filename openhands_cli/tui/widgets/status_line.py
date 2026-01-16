@@ -18,10 +18,6 @@ if TYPE_CHECKING:
     from openhands_cli.tui.textual_app import OpenHandsApp
 
 
-# Default cloud URL (same as in auth_parser.py)
-DEFAULT_CLOUD_URL = os.getenv("OPENHANDS_CLOUD_URL", "https://app.all-hands.dev")
-
-
 class WorkingStatusLine(Static):
     """Status line showing conversation timer and working indicator (above input)."""
 
@@ -169,7 +165,8 @@ class InfoStatusLine(Static):
             return
 
         try:
-            self._cloud_connected = await is_token_valid(DEFAULT_CLOUD_URL, api_key)
+            cloud_url = self.main_app.cloud_url
+            self._cloud_connected = await is_token_valid(cloud_url, api_key)
         except Exception:
             # Any error means we can't connect
             self._cloud_connected = False
@@ -318,6 +315,7 @@ class InfoStatusLine(Static):
         modal = CloudLinkModal(
             is_connected=self._cloud_connected or False,
             on_link_complete=self._on_cloud_link_complete,
+            cloud_url=self.main_app.cloud_url,
         )
         self.main_app.push_screen(modal)
 
