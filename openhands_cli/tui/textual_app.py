@@ -524,18 +524,10 @@ class OpenHandsApp(CollapsibleNavigationMixin, App):
             if self.cloud:
                 self._show_cloud_setup_indicator()
 
-            # Create conversation runner in background to avoid blocking UI
-            # This is especially important for cloud mode which makes API calls
-            try:
-                self.run_worker(
-                    self._create_runner_and_process_message(user_message),
-                    name="create_runner_and_process",
-                )
-            except RuntimeError:
-                # In test environment, create runner synchronously
-                self.conversation_runner = self.create_conversation_runner()
-                self._process_message_with_runner(user_message)
-            return
+            loop = asyncio.get_event_loop()
+            self.conversation_runner = await loop.run_in_executor(
+                None, self.create_conversation_runner
+            )
 
         # Check if cloud conversation is ready (for cloud mode)
         if self.cloud and not self.cloud_conversation_ready:
@@ -553,18 +545,6 @@ class OpenHandsApp(CollapsibleNavigationMixin, App):
         # Process message asynchronously to keep UI responsive
         self._process_message_with_runner(user_message)
 
-    async def _create_runner_and_process_message(self, user_message: str) -> None:
-        """Create conversation runner in background and process the message."""
-        # Run the blocking conversation runner creation in a thread
-        loop = asyncio.get_event_loop()
-        self.conversation_runner = await loop.run_in_executor(
-            None, self.create_conversation_runner
-        )
-
-        # Now process the message
-        await self.conversation_runner.process_message_async(
-            user_message, self.headless_mode
-        )
 
     def _process_message_with_runner(self, user_message: str) -> None:
         """Process message with the conversation runner."""
