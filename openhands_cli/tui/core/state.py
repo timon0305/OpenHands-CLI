@@ -87,24 +87,32 @@ class ConfirmationRequired(Message):
 
 
 class StateManager(Widget):
-    """Centralized state manager for conversation UI.
+    """Centralized state manager and container for conversation UI.
     
-    This widget holds all conversation state and emits Textual messages when
-    state changes. UI widgets listen for these messages to update their display.
+    This widget serves as a parent container for UI components that need
+    reactive state. Child widgets can use data_bind() to bind to StateManager's
+    reactive properties, which automatically updates them when state changes.
     
     Example:
-        # In widget:
-        @on(StateChanged)
-        def _on_state_changed(self, event: StateChanged) -> None:
-            if event.key == "is_running":
-                self._update_display()
+        # In compose(), yield widgets as children of StateManager:
+        with state_manager:
+            yield WorkingStatusLine().data_bind(
+                is_running=StateManager.is_running,
+                elapsed_seconds=StateManager.elapsed_seconds,
+            )
         
-        @on(ConversationStarted)
-        def _on_conversation_started(self, event: ConversationStarted) -> None:
-            self._show_running_indicator()
-        
-        # State updates trigger message emission:
-        state_manager.set_running(True)  # Emits ConversationStarted message
+        # State updates automatically propagate to bound children:
+        state_manager.set_running(True)  # WorkingStatusLine updates automatically
+    
+    The StateManager also emits messages for complex state transitions.
+    """
+    
+    DEFAULT_CSS = """
+    StateManager {
+        /* StateManager is a transparent container */
+        height: auto;
+        width: 100%;
+    }
     """
     
     # ---- Core Running State ----
@@ -146,9 +154,7 @@ class StateManager(Widget):
     _timer = None
     
     def __init__(self, cloud_mode: bool = False, **kwargs) -> None:
-        # Don't render this widget - it's just a state container
         super().__init__(**kwargs)
-        self.display = False
         self.set_reactive(StateManager.cloud_mode, cloud_mode)
         self.set_reactive(StateManager.cloud_ready, not cloud_mode)
     

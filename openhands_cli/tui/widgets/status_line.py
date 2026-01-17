@@ -2,19 +2,20 @@ from __future__ import annotations
 
 import os
 
-from textual import on
+from textual.reactive import var
 from textual.timer import Timer
 from textual.widgets import Static
 
 from openhands_cli.locations import WORK_DIR
-from openhands_cli.tui.core.state import StateChanged, ConversationStarted, ConversationFinished
 from openhands_cli.utils import abbreviate_number, format_cost
 
 
 class WorkingStatusLine(Static):
     """Status line showing conversation timer and working indicator (above input).
     
-    This widget listens for state change messages from StateManager.
+    This widget uses data_bind() to bind to StateManager reactive properties.
+    When StateManager.is_running or StateManager.elapsed_seconds change,
+    this widget's corresponding properties are automatically updated.
     """
 
     DEFAULT_CSS = """
@@ -25,13 +26,15 @@ class WorkingStatusLine(Static):
         padding: 0 1;
     }
     """
+    
+    # Reactive properties bound via data_bind() to StateManager
+    is_running: var[bool] = var(False)
+    elapsed_seconds: var[int] = var(0)
 
     def __init__(self, **kwargs) -> None:
         super().__init__("", id="working_status_line", markup=False, **kwargs)
         self._timer: Timer | None = None
         self._working_frame: int = 0
-        self._is_running: bool = False
-        self._elapsed_seconds: int = 0
 
     def on_mount(self) -> None:
         """Initialize the working status line and start animation timer."""
@@ -45,46 +48,34 @@ class WorkingStatusLine(Static):
             self._timer.stop()
             self._timer = None
 
-    # ----- Message Handlers -----
+    # ----- Reactive Watchers -----
     
-    @on(ConversationStarted)
-    def _on_conversation_started(self, event: ConversationStarted) -> None:
-        """Handle conversation start."""
-        self._is_running = True
-        self._elapsed_seconds = 0
+    def watch_is_running(self, is_running: bool) -> None:
+        """React to running state changes from StateManager."""
         self._update_text()
     
-    @on(ConversationFinished)
-    def _on_conversation_finished(self, event: ConversationFinished) -> None:
-        """Handle conversation end."""
-        self._is_running = False
+    def watch_elapsed_seconds(self, elapsed: int) -> None:
+        """React to elapsed time changes from StateManager."""
         self._update_text()
-    
-    @on(StateChanged)
-    def _on_state_changed(self, event: StateChanged) -> None:
-        """Handle state changes from StateManager."""
-        if event.key == "elapsed_seconds":
-            self._elapsed_seconds = event.new_value
-            self._update_text()
 
     # ----- Internal helpers -----
 
     def _on_tick(self) -> None:
         """Periodic update for animation."""
-        if self._is_running:
+        if self.is_running:
             self._working_frame = (self._working_frame + 1) % 8
             self._update_text()
 
     def _get_working_text(self) -> str:
         """Return working status text if conversation is running."""
-        if not self._is_running:
+        if not self.is_running:
             return ""
 
         # Add working indicator with Braille spinner animation
         frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧"]
         working_indicator = f"{frames[self._working_frame % len(frames)]} Working"
 
-        return f"{working_indicator} ({self._elapsed_seconds}s • ESC: pause)"
+        return f"{working_indicator} ({self.elapsed_seconds}s • ESC: pause)"
 
     def _update_text(self) -> None:
         """Rebuild the working status text."""
@@ -95,7 +86,8 @@ class WorkingStatusLine(Static):
 class InfoStatusLine(Static):
     """Status line showing work directory, input mode, and conversation metrics.
     
-    This widget listens for state change messages from StateManager.
+    This widget uses data_bind() to bind to StateManager reactive properties.
+    When StateManager metrics change, this widget automatically updates.
     """
 
     DEFAULT_CSS = """
@@ -106,18 +98,20 @@ class InfoStatusLine(Static):
         padding: 0 1;
     }
     """
+    
+    # Reactive properties bound via data_bind() to StateManager
+    is_running: var[bool] = var(False)
+    is_multiline_mode: var[bool] = var(False)
+    input_tokens: var[int] = var(0)
+    output_tokens: var[int] = var(0)
+    cache_hit_rate: var[str] = var("N/A")
+    last_request_input_tokens: var[int] = var(0)
+    context_window: var[int] = var(0)
+    accumulated_cost: var[float] = var(0.0)
 
     def __init__(self, **kwargs) -> None:
         super().__init__("", id="info_status_line", markup=True, **kwargs)
         self.work_dir_display = self._get_work_dir_display()
-        # Internal state
-        self._is_multiline_mode: bool = False
-        self._input_tokens: int = 0
-        self._output_tokens: int = 0
-        self._cache_hit_rate: str = "N/A"
-        self._last_request_input_tokens: int = 0
-        self._context_window: int = 0
-        self._accumulated_cost: float = 0.0
 
     def on_mount(self) -> None:
         """Initialize the info status line."""
@@ -127,31 +121,34 @@ class InfoStatusLine(Static):
         """Recalculate layout when widget is resized."""
         self._update_text()
 
-    # ----- Message Handlers -----
+    # ----- Reactive Watchers -----
     
-    @on(StateChanged)
-    def _on_state_changed(self, event: StateChanged) -> None:
-        """Handle state changes from StateManager."""
-        key = event.key
-        value = event.new_value
-        
-        if key == "is_multiline_mode":
-            self._is_multiline_mode = value
-        elif key == "input_tokens":
-            self._input_tokens = value
-        elif key == "output_tokens":
-            self._output_tokens = value
-        elif key == "cache_hit_rate":
-            self._cache_hit_rate = value
-        elif key == "last_request_input_tokens":
-            self._last_request_input_tokens = value
-        elif key == "context_window":
-            self._context_window = value
-        elif key == "accumulated_cost":
-            self._accumulated_cost = value
-        else:
-            return  # Don't update for unrelated state changes
-        
+    def watch_is_multiline_mode(self, value: bool) -> None:
+        """React to multiline mode changes from StateManager."""
+        self._update_text()
+    
+    def watch_input_tokens(self, value: int) -> None:
+        """React to input token changes from StateManager."""
+        self._update_text()
+    
+    def watch_output_tokens(self, value: int) -> None:
+        """React to output token changes from StateManager."""
+        self._update_text()
+    
+    def watch_cache_hit_rate(self, value: str) -> None:
+        """React to cache hit rate changes from StateManager."""
+        self._update_text()
+    
+    def watch_last_request_input_tokens(self, value: int) -> None:
+        """React to context usage changes from StateManager."""
+        self._update_text()
+    
+    def watch_context_window(self, value: int) -> None:
+        """React to context window changes from StateManager."""
+        self._update_text()
+    
+    def watch_accumulated_cost(self, value: float) -> None:
+        """React to cost changes from StateManager."""
         self._update_text()
 
     # ----- Internal helpers -----
@@ -159,7 +156,7 @@ class InfoStatusLine(Static):
     @property
     def mode_indicator(self) -> str:
         """Get the mode indicator text based on current mode."""
-        if self._is_multiline_mode:
+        if self.is_multiline_mode:
             return "\\[Multi-line: Ctrl+J to submit • Ctrl+X for custom editor]"
         return "\\[Ctrl+L for multi-line • Ctrl+X for custom editor]"
 
@@ -177,21 +174,21 @@ class InfoStatusLine(Static):
         Shows: context (current / total) • cost (input tokens • output tokens • cache)
         """
         # Context display: show current context usage / total context window
-        if self._last_request_input_tokens > 0:
-            ctx_current = abbreviate_number(self._last_request_input_tokens)
-            if self._context_window > 0:
-                ctx_total = abbreviate_number(self._context_window)
+        if self.last_request_input_tokens > 0:
+            ctx_current = abbreviate_number(self.last_request_input_tokens)
+            if self.context_window > 0:
+                ctx_total = abbreviate_number(self.context_window)
                 ctx_display = f"ctx {ctx_current} / {ctx_total}"
             else:
                 ctx_display = f"ctx {ctx_current}"
         else:
             ctx_display = "ctx N/A"
 
-        cost_display = f"$ {format_cost(self._accumulated_cost)}"
+        cost_display = f"$ {format_cost(self.accumulated_cost)}"
         token_details = (
-            f"↑ {abbreviate_number(self._input_tokens)} "
-            f"↓ {abbreviate_number(self._output_tokens)} "
-            f"cache {self._cache_hit_rate}"
+            f"↑ {abbreviate_number(self.input_tokens)} "
+            f"↓ {abbreviate_number(self.output_tokens)} "
+            f"cache {self.cache_hit_rate}"
         )
         return f"{ctx_display} • {cost_display} ({token_details})"
 
