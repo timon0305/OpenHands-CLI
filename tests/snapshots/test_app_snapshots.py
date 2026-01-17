@@ -27,6 +27,7 @@ from openhands_cli.theme import OPENHANDS_THEME
 from openhands_cli.tui.modals.exit_modal import ExitConfirmationModal
 from openhands_cli.tui.panels.mcp_side_panel import MCPSidePanel
 from openhands_cli.tui.panels.plan_side_panel import PlanSidePanel
+from openhands_cli.tui.widgets import CloudSetupIndicator
 
 
 if TYPE_CHECKING:
@@ -358,8 +359,8 @@ class TestCloudIndicatorSnapshots:
     def test_cloud_setup_indicator(self, snap_compare):
         """Snapshot test for cloud conversation setup indicator.
 
-        Shows the 'Setting up cloud conversation...' message that appears
-        when a cloud conversation is being initialized.
+        Shows the 'Setting up cloud conversation...' message with animated
+        spinner that appears when a cloud conversation is being initialized.
         """
 
         class CloudSetupIndicatorApp(App):
@@ -378,18 +379,9 @@ class TestCloudIndicatorSnapshots:
             def compose(self) -> ComposeResult:
                 with VerticalScroll(id="main_display"):
                     yield Static("OpenHands CLI - Cloud Mode", classes="banner")
+                    # Include the cloud setup indicator directly in compose
+                    yield CloudSetupIndicator(classes="cloud-setup-indicator")
                 yield Footer()
-
-            def on_mount(self) -> None:
-                # Simulate adding the cloud setup indicator
-                setup_widget = Static(
-                    f"[{OPENHANDS_THEME.warning}]☁️  Setting up cloud "
-                    f"conversation... Please wait.[/{OPENHANDS_THEME.warning}]",
-                    id="cloud_setup_indicator",
-                    classes="cloud-setup-indicator",
-                )
-                main_display = self.query_one("#main_display", VerticalScroll)
-                main_display.mount(setup_widget)
 
         assert snap_compare(CloudSetupIndicatorApp(), terminal_size=(80, 20))
 

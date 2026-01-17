@@ -1,5 +1,7 @@
 """Cloud setup indicator widget with animated spinner."""
 
+from typing import ClassVar
+
 from textual.timer import Timer
 from textual.widgets import Static
 
@@ -11,22 +13,28 @@ class CloudSetupIndicator(Static):
 
     DEFAULT_CSS = """
     CloudSetupIndicator {
-        height: 1;
+        height: auto;
         padding: 0 1;
     }
     """
 
     # Braille pattern spinner - smooth and professional
-    SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧"]
+    SPINNER_FRAMES: ClassVar[list[str]] = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧"]
 
     def __init__(self, **kwargs) -> None:
-        super().__init__("", id="cloud_setup_indicator", **kwargs)
+        # Initialize with the first frame immediately visible
+        initial_text = (
+            f"[{OPENHANDS_THEME.warning}]☁️  Setting up cloud conversation... "
+            f"Please wait {self.SPINNER_FRAMES[0]}[/{OPENHANDS_THEME.warning}]"
+        )
+        super().__init__(
+            initial_text, id="cloud_setup_indicator", markup=True, **kwargs
+        )
         self._timer: Timer | None = None
         self._frame: int = 0
 
     def on_mount(self) -> None:
         """Start the spinner animation on mount."""
-        self._update_text()
         self._timer = self.set_interval(0.1, self._on_tick)
 
     def on_unmount(self) -> None:
