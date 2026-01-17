@@ -84,6 +84,7 @@ class OpenHandsApp(CollapsibleNavigationMixin, App):
         json_mode: bool = False,
         cloud: bool = False,
         server_url: str | None = None,
+        sandbox_id: str | None = None,
         **kwargs,
     ):
         """Initialize the app with custom OpenHands theme.
@@ -99,6 +100,7 @@ class OpenHandsApp(CollapsibleNavigationMixin, App):
             json_mode: If True, enable JSON output mode.
             cloud: If True, use OpenHands Cloud for remote execution.
             server_url: The OpenHands Cloud server URL (used when cloud=True).
+            sandbox_id: Optional sandbox ID to reclaim an existing sandbox.
         """
         super().__init__(**kwargs)
 
@@ -117,6 +119,7 @@ class OpenHandsApp(CollapsibleNavigationMixin, App):
         # Store cloud mode settings
         self.cloud = cloud
         self.server_url = server_url
+        self.sandbox_id = sandbox_id
         # Track if cloud conversation is ready (set to True when we receive
         # ConversationStateUpdateEvent)
         self.cloud_conversation_ready = not cloud  # True if not cloud mode
@@ -417,6 +420,7 @@ class OpenHandsApp(CollapsibleNavigationMixin, App):
             event_callback,
             cloud=self.cloud,
             server_url=self.server_url,
+            sandbox_id=self.sandbox_id,
         )
 
         return runner
@@ -891,6 +895,7 @@ def main(
     json_mode: bool = False,
     cloud: bool = False,
     server_url: str | None = None,
+    sandbox_id: str | None = None,
 ):
     """Run the textual app.
 
@@ -904,6 +909,7 @@ def main(
         json_mode: If True, enable JSON output mode (implies headless).
         cloud: If True, use OpenHands Cloud for remote execution.
         server_url: The OpenHands Cloud server URL (used when cloud=True).
+        sandbox_id: Optional sandbox ID to reclaim an existing sandbox.
     """
     # Determine initial confirmation policy from CLI arguments
     # If headless mode is enabled, always use NeverConfirm (auto-approve all actions)
@@ -924,6 +930,7 @@ def main(
         json_mode=json_mode,
         cloud=cloud,
         server_url=server_url,
+        sandbox_id=sandbox_id,
     )
     app.run(headless=headless)
 

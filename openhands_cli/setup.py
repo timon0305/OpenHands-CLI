@@ -95,6 +95,7 @@ def setup_conversation(
     event_callback: Callable[[Event], None] | None = None,
     cloud: bool = False,
     server_url: str | None = None,
+    sandbox_id: str | None = None,
 ) -> BaseConversation:
     """
     Setup the conversation with agent.
@@ -107,6 +108,7 @@ def setup_conversation(
         event_callback: Optional callback function to handle events (e.g., JSON output)
         cloud: If True, use OpenHands Cloud for remote execution.
         server_url: The OpenHands Cloud server URL (used when cloud=True).
+        sandbox_id: Optional sandbox ID to reclaim an existing sandbox (cloud mode).
 
     Raises:
         MissingAgentSpec: If agent specification is not found or invalid.
@@ -121,6 +123,7 @@ def setup_conversation(
             visualizer=visualizer,
             event_callback=event_callback,
             server_url=server_url,
+            sandbox_id=sandbox_id,
         )
 
     console.print("Initializing agent...", style="white")
@@ -154,6 +157,7 @@ def setup_cloud_conversation(
     visualizer: ConversationVisualizer | None = None,
     event_callback: Callable[[Event], None] | None = None,
     server_url: str | None = None,
+    sandbox_id: str | None = None,
 ) -> BaseConversation:
     """
     Setup a cloud conversation using OpenHands Cloud.
@@ -164,6 +168,7 @@ def setup_cloud_conversation(
         visualizer: Optional visualizer to use.
         event_callback: Optional callback function to handle events.
         server_url: The OpenHands Cloud server URL.
+        sandbox_id: Optional sandbox ID to reclaim an existing sandbox.
 
     Raises:
         ValueError: If API key is not available.
@@ -195,10 +200,11 @@ def setup_cloud_conversation(
     # Load agent specs for the conversation
     agent = load_agent_specs(str(conversation_id))
 
-    # Create cloud workspace
+    # Create cloud workspace with optional sandbox_id to reclaim existing sandbox
     workspace = OpenHandsCloudWorkspace(
         cloud_api_url=server_url,
         cloud_api_key=api_key,
+        sandbox_id=sandbox_id,
     )
 
     # Prepare callbacks list
@@ -218,8 +224,14 @@ def setup_cloud_conversation(
     conversation.set_security_analyzer(LLMSecurityAnalyzer())
     conversation.set_confirmation_policy(confirmation_policy)
 
-    console.print(
-        f"✓ Cloud conversation initialized with model: {agent.llm.model}",
-        style="green",
-    )
+    if sandbox_id:
+        console.print(
+            f"✓ Cloud conversation resumed with sandbox: {sandbox_id[:8]}...",
+            style="green",
+        )
+    else:
+        console.print(
+            f"✓ Cloud conversation initialized with model: {agent.llm.model}",
+            style="green",
+        )
     return conversation

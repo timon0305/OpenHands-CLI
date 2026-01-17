@@ -44,6 +44,7 @@ class ConversationRunner:
         event_callback: Callable[[Event], None] | None = None,
         cloud: bool = False,
         server_url: str | None = None,
+        sandbox_id: str | None = None,
     ):
         """Initialize the conversation runner.
 
@@ -56,9 +57,19 @@ class ConversationRunner:
                                         If None, defaults to AlwaysConfirm.
             cloud: If True, use OpenHands Cloud for remote execution.
             server_url: The OpenHands Cloud server URL (used when cloud=True).
+            sandbox_id: Optional sandbox ID to reclaim an existing sandbox.
         """
         starting_confirmation_policy = initial_confirmation_policy or AlwaysConfirm()
         self.visualizer = visualizer
+
+        # Store cloud configuration for potential workspace restart
+        self._cloud = cloud
+        self._server_url = server_url
+        self._sandbox_id = sandbox_id
+        self._conversation_id = conversation_id
+        self._event_callback = event_callback
+        self._initial_confirmation_policy = starting_confirmation_policy
+
         self.conversation: BaseConversation = setup_conversation(
             conversation_id,
             confirmation_policy=starting_confirmation_policy,
@@ -66,6 +77,7 @@ class ConversationRunner:
             event_callback=event_callback,
             cloud=cloud,
             server_url=server_url,
+            sandbox_id=sandbox_id,
         )
 
         self._running = False
@@ -143,6 +155,59 @@ class ConversationRunner:
             None, self._run_conversation_sync, message, headless
         )
 
+    def _ensure_workspace_alive(self) -> bool:
+        """Check if cloud workspace is alive and restart if needed.
+
+        Returns:
+            True if workspace is alive (or not in cloud mode), False if restart failed.
+        """
+        if not self._cloud:
+            return True
+
+        # Check if workspace is alive
+        workspace = getattr(self.conversation, "_workspace", None)
+        if workspace is None:
+            # Try to get workspace from state
+            workspace = getattr(self.conversation.state, "workspace", None)
+
+        if workspace is None:
+            return True  # Can't check, assume it's fine
+
+        # Check if workspace has alive property and is not alive
+        if hasattr(workspace, "alive") and not workspace.alive:
+            self._notification_callback(
+                "Workspace Reconnecting",
+                "Cloud workspace is not responding. Attempting to reconnect...",
+                "warning",
+            )
+
+            # Reinitialize the conversation with the same sandbox_id
+            try:
+                self.conversation = setup_conversation(
+                    self._conversation_id,
+                    confirmation_policy=self._initial_confirmation_policy,
+                    visualizer=self.visualizer,
+                    event_callback=self._event_callback,
+                    cloud=self._cloud,
+                    server_url=self._server_url,
+                    sandbox_id=self._sandbox_id,
+                )
+                self._notification_callback(
+                    "Workspace Reconnected",
+                    "Cloud workspace has been reconnected successfully.",
+                    "information",
+                )
+                return True
+            except Exception as e:
+                self._notification_callback(
+                    "Workspace Error",
+                    f"Failed to reconnect to cloud workspace: {e}",
+                    "error",
+                )
+                return False
+
+        return True
+
     def _run_conversation_sync(self, message: Message, headless: bool = False) -> None:
         """Run the conversation synchronously in a thread.
 
@@ -151,6 +216,10 @@ class ConversationRunner:
         """
         self._update_run_status(True)
         try:
+            # For cloud mode, ensure workspace is still alive before sending
+            if not self._ensure_workspace_alive():
+                return
+
             # Send message and run conversation
             self.conversation.send_message(message)
             if self._confirmation_mode_active:

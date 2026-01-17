@@ -33,6 +33,79 @@ if debug_env != "1" and debug_env != "true":
     warnings.filterwarnings("ignore")
 
 
+def _fetch_cloud_sandbox_id(
+    server_url: str, conversation_id: str, console: Console
+) -> str | None:
+    """Fetch sandbox_id for a cloud conversation.
+
+    Args:
+        server_url: The OpenHands Cloud server URL
+        conversation_id: The conversation ID to look up
+        console: Console for output
+
+    Returns:
+        sandbox_id if found, None otherwise
+    """
+    import asyncio
+
+    from openhands_cli.auth.api_client import (
+        ApiClientError,
+        OpenHandsApiClient,
+        UnauthenticatedError,
+    )
+    from openhands_cli.auth.token_storage import TokenStorage
+
+    # Get API key
+    store = TokenStorage()
+    if not store.has_api_key():
+        console.print(
+            "Not logged in to OpenHands Cloud. Run 'openhands login' first.",
+            style=OPENHANDS_THEME.error,
+        )
+        return None
+
+    api_key = store.get_api_key()
+    if not api_key:
+        console.print(
+            "Invalid API key stored. Run 'openhands login' to re-authenticate.",
+            style=OPENHANDS_THEME.error,
+        )
+        return None
+
+    async def fetch_info():
+        client = OpenHandsApiClient(server_url, api_key)
+        return await client.get_conversation_info(conversation_id)
+
+    try:
+        conversation_info = asyncio.run(fetch_info())
+        if conversation_info:
+            sandbox_id = conversation_info.get("sandbox_id")
+            if sandbox_id:
+                console.print(
+                    f"Found sandbox for conversation: {sandbox_id[:8]}...",
+                    style=OPENHANDS_THEME.secondary,
+                )
+            return sandbox_id
+        else:
+            console.print(
+                f"Conversation {conversation_id} not found in cloud.",
+                style=OPENHANDS_THEME.warning,
+            )
+            return None
+    except UnauthenticatedError:
+        console.print(
+            "Authentication failed. Run 'openhands login' to re-authenticate.",
+            style=OPENHANDS_THEME.error,
+        )
+        return None
+    except ApiClientError as e:
+        console.print(
+            f"Failed to fetch conversation info: {e}",
+            style=OPENHANDS_THEME.error,
+        )
+        return None
+
+
 def handle_resume_logic(args) -> str | None:
     """Handle resume logic and return the conversation ID to resume.
 
@@ -167,11 +240,30 @@ def main() -> None:
                     "(and optionally TTY_COMPATIBLE=1)."
                 )
 
+            # Handle cloud resume logic
+            resume_id = None
+            sandbox_id = None
+            if hasattr(args, "resume") and args.resume is not None:
+                if args.resume == "":
+                    # Show conversation list (TODO: implement cloud conversation list)
+                    console.print(
+                        "Listing cloud conversations is not yet supported.",
+                        style=OPENHANDS_THEME.warning,
+                    )
+                    return
+                else:
+                    resume_id = args.resume
+                    # Fetch sandbox_id for the conversation
+                    sandbox_id = _fetch_cloud_sandbox_id(
+                        args.server_url, resume_id, console
+                    )
+
             # Use textual-based UI with cloud mode
             from openhands_cli.tui.textual_app import main as textual_main
 
             queued_inputs = create_seeded_instructions_from_args(args)
             conversation_id = textual_main(
+                resume_conversation_id=resume_id,
                 queued_inputs=queued_inputs,
                 always_approve=getattr(args, "always_approve", False),
                 llm_approve=getattr(args, "llm_approve", False),
@@ -183,6 +275,7 @@ def main() -> None:
                 and getattr(args, "headless", False),
                 cloud=True,
                 server_url=args.server_url,
+                sandbox_id=sandbox_id,
             )
             console.print("Goodbye! 👋", style=OPENHANDS_THEME.success)
             console.print(
