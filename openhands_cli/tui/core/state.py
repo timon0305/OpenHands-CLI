@@ -86,166 +86,94 @@ class ConfirmationRequired(Message):
         self.pending_actions = pending_actions
 
 
-class StateManager(Widget):
-    """Centralized state manager and container for conversation UI.
+class StateManager:
+    """Centralized state manager for conversation UI.
     
-    This widget serves as a parent container for UI components that need
-    reactive state. Child widgets can use data_bind() to bind to StateManager's
-    reactive properties, which automatically updates them when state changes.
+    This class manages conversation state and updates the App's reactive
+    properties. Child widgets use data_bind() to bind to the App's properties.
     
     Example:
-        # In compose(), yield widgets as children of StateManager:
-        with state_manager:
-            yield WorkingStatusLine().data_bind(
-                is_running=StateManager.is_running,
-                elapsed_seconds=StateManager.elapsed_seconds,
-            )
+        # In App.__init__:
+        self.state_manager = StateManager(self)
         
-        # State updates automatically propagate to bound children:
-        state_manager.set_running(True)  # WorkingStatusLine updates automatically
+        # In compose():
+        yield WorkingStatusLine().data_bind(
+            is_running=OpenHandsApp.is_running,
+            elapsed_seconds=OpenHandsApp.elapsed_seconds,
+        )
+        
+        # State updates propagate to bound children:
+        state_manager.set_running(True)  # Updates App.is_running -> WorkingStatusLine
     
-    The StateManager also emits messages for complex state transitions.
+    The StateManager also posts messages for complex state transitions.
     """
     
-    DEFAULT_CSS = """
-    StateManager {
-        /* StateManager is a transparent container */
-        height: auto;
-        width: 100%;
-    }
-    """
+    def __init__(self, app, cloud_mode: bool = False) -> None:
+        self._app = app
+        self._cloud_mode = cloud_mode
+        self._cloud_ready = not cloud_mode
+        self._is_confirmation_mode = True
+        self._pending_actions_count = 0
+        self._conversation_start_time: float | None = None
+        self._timer = None
     
-    # ---- Core Running State ----
-    is_running: var[bool] = var(False)
-    """Whether the conversation is currently running/processing."""
+    @property
+    def is_running(self) -> bool:
+        """Get current running state from App."""
+        return self._app.is_running
     
-    # ---- Confirmation Mode ----
-    is_confirmation_mode: var[bool] = var(True)
-    """Whether confirmation mode is active (user must approve actions)."""
+    def start_timer(self) -> None:
+        """Start the elapsed time timer. Call this from App.on_mount()."""
+        self._timer = self._app.set_interval(1.0, self._update_elapsed)
     
-    pending_actions_count: var[int] = var(0)
-    """Number of actions pending user confirmation."""
-    
-    # ---- Cloud State ----
-    cloud_mode: var[bool] = var(False)
-    """Whether running in cloud mode."""
-    
-    cloud_ready: var[bool] = var(True)
-    """Whether cloud workspace is ready (always True if not cloud mode)."""
-    
-    # ---- Timing ----
-    elapsed_seconds: var[int] = var(0)
-    """Seconds elapsed since conversation started."""
-    
-    # ---- Metrics ----
-    input_tokens: var[int] = var(0)
-    output_tokens: var[int] = var(0)
-    cache_hit_rate: var[str] = var("N/A")
-    last_request_input_tokens: var[int] = var(0)
-    context_window: var[int] = var(0)
-    accumulated_cost: var[float] = var(0.0)
-    
-    # ---- UI State ----
-    is_multiline_mode: var[bool] = var(False)
-    """Whether input field is in multiline mode."""
-    
-    # Internal state
-    _conversation_start_time: float | None = None
-    _timer = None
-    
-    def __init__(self, cloud_mode: bool = False, **kwargs) -> None:
-        super().__init__(**kwargs)
-        self.set_reactive(StateManager.cloud_mode, cloud_mode)
-        self.set_reactive(StateManager.cloud_ready, not cloud_mode)
-    
-    def on_mount(self) -> None:
-        """Start the elapsed time timer."""
-        self._timer = self.set_interval(1.0, self._update_elapsed)
-    
-    def on_unmount(self) -> None:
-        """Clean up timer."""
+    def stop_timer(self) -> None:
+        """Stop the elapsed time timer."""
         if self._timer:
             self._timer.stop()
             self._timer = None
     
     def _update_elapsed(self) -> None:
         """Update elapsed seconds while running."""
-        if self.is_running and self._conversation_start_time is not None:
+        if self._app.is_running and self._conversation_start_time is not None:
             import time
             new_elapsed = int(time.time() - self._conversation_start_time)
-            if new_elapsed != self.elapsed_seconds:
-                old_elapsed = self.elapsed_seconds
-                self.elapsed_seconds = new_elapsed
-                self.post_message(StateChanged("elapsed_seconds", old_elapsed, new_elapsed))
-    
-    # ---- State Change Watchers ----
-    
-    def watch_is_running(self, old_value: bool, new_value: bool) -> None:
-        """Handle running state transitions."""
-        import time
-        
-        if new_value and not old_value:
-            # Started running
-            self._conversation_start_time = time.time()
-            self.elapsed_seconds = 0
-            self.post_message(ConversationStarted())
-        elif not new_value and old_value:
-            # Stopped running
-            self._conversation_start_time = None
-            self.post_message(ConversationFinished())
-        
-        # Emit generic state changed message
-        self.post_message(StateChanged("is_running", old_value, new_value))
-    
-    def watch_cloud_ready(self, old_value: bool, new_value: bool) -> None:
-        """Handle cloud ready state transitions."""
-        if new_value and not old_value:
-            self.post_message(StateChanged("cloud_ready", old_value, new_value))
+            if new_elapsed != self._app.elapsed_seconds:
+                self._app.elapsed_seconds = new_elapsed
     
     # ---- State Update Methods ----
     # These methods are thread-safe and can be called from background threads.
     
     def set_running(self, is_running: bool) -> None:
         """Set the running state. Thread-safe."""
-        self._schedule_update("is_running", is_running)
+        import time
+        
+        def do_update():
+            old_running = self._app.is_running
+            self._app.is_running = is_running
+            
+            if is_running and not old_running:
+                # Started running
+                self._conversation_start_time = time.time()
+                self._app.elapsed_seconds = 0
+                self._app.post_message(ConversationStarted())
+            elif not is_running and old_running:
+                # Stopped running
+                self._conversation_start_time = None
+                self._app.post_message(ConversationFinished())
+        
+        self._schedule_on_main_thread(do_update)
     
     def set_confirmation_mode(self, is_active: bool) -> None:
         """Set confirmation mode state. Thread-safe."""
-        self._schedule_update("is_confirmation_mode", is_active)
-    
-    def _schedule_update(self, attr: str, value: Any) -> None:
-        """Schedule a state update, handling cross-thread calls.
-        
-        When called from a background thread, uses call_from_thread to
-        schedule the update on the main thread.
-        """
-        import threading
-        
-        def do_update():
-            setattr(self, attr, value)
-        
-        # Check if we're in the main thread by checking for active app
-        try:
-            # If we can get the app, we're in the right context
-            _ = self.app
-            do_update()
-        except Exception:
-            # We're in a background thread, need to schedule on main thread
-            # Use call_later which is thread-safe
-            try:
-                self.call_from_thread(do_update)
-            except Exception:
-                # Fallback: just set the attribute without posting messages
-                # This happens during startup before app is fully initialized
-                object.__setattr__(self, attr, value)
+        self._is_confirmation_mode = is_active
     
     def set_cloud_ready(self, ready: bool = True) -> None:
         """Set cloud workspace ready state. Thread-safe."""
-        self._schedule_update("cloud_ready", ready)
+        self._cloud_ready = ready
     
     def set_pending_actions(self, count: int) -> None:
         """Set the number of pending actions. Thread-safe."""
-        self._schedule_update("pending_actions_count", count)
+        self._pending_actions_count = count
     
     def update_metrics(
         self,
@@ -256,63 +184,65 @@ class StateManager(Widget):
         context_window: int | None = None,
         accumulated_cost: float | None = None,
     ) -> None:
-        """Update conversation metrics. Thread-safe.
-        
-        Only updates provided values, leaving others unchanged.
-        """
+        """Update conversation metrics. Thread-safe."""
         def do_update():
             if input_tokens is not None:
-                self.input_tokens = input_tokens
+                self._app.input_tokens = input_tokens
             if output_tokens is not None:
-                self.output_tokens = output_tokens
+                self._app.output_tokens = output_tokens
             if cache_hit_rate is not None:
-                self.cache_hit_rate = cache_hit_rate
+                self._app.cache_hit_rate = cache_hit_rate
             if last_request_input_tokens is not None:
-                self.last_request_input_tokens = last_request_input_tokens
+                self._app.last_request_input_tokens = last_request_input_tokens
             if context_window is not None:
-                self.context_window = context_window
+                self._app.context_window = context_window
             if accumulated_cost is not None:
-                self.accumulated_cost = accumulated_cost
+                self._app.accumulated_cost = accumulated_cost
         
-        # Check if we're in the main thread
+        self._schedule_on_main_thread(do_update)
+    
+    def _schedule_on_main_thread(self, callback) -> None:
+        """Schedule a callback on the main thread. Thread-safe."""
         try:
-            _ = self.app
-            do_update()
-        except Exception:
-            try:
-                self.call_from_thread(do_update)
-            except Exception:
-                # Fallback during startup
-                do_update()
+            # Try to call directly if we're in main thread
+            from textual._context import active_app
+            _ = active_app.get()
+            callback()
+        except LookupError:
+            # We're in a background thread, schedule on main thread
+            self._app.call_from_thread(callback)
     
     def get_snapshot(self) -> ConversationStateSnapshot:
         """Get an immutable snapshot of current state."""
         return ConversationStateSnapshot(
-            is_running=self.is_running,
-            is_confirmation_mode=self.is_confirmation_mode,
-            cloud_ready=self.cloud_ready,
-            cloud_mode=self.cloud_mode,
-            elapsed_seconds=self.elapsed_seconds,
-            pending_actions_count=self.pending_actions_count,
+            is_running=self._app.is_running,
+            is_confirmation_mode=self._is_confirmation_mode,
+            cloud_ready=self._cloud_ready,
+            cloud_mode=self._cloud_mode,
+            elapsed_seconds=self._app.elapsed_seconds,
+            pending_actions_count=self._pending_actions_count,
             metrics=ConversationMetrics(
-                input_tokens=self.input_tokens,
-                output_tokens=self.output_tokens,
-                cache_hit_rate=self.cache_hit_rate,
-                last_request_input_tokens=self.last_request_input_tokens,
-                context_window=self.context_window,
-                accumulated_cost=self.accumulated_cost,
+                input_tokens=self._app.input_tokens,
+                output_tokens=self._app.output_tokens,
+                cache_hit_rate=self._app.cache_hit_rate,
+                last_request_input_tokens=self._app.last_request_input_tokens,
+                context_window=self._app.context_window,
+                accumulated_cost=self._app.accumulated_cost,
             )
         )
     
     def reset(self) -> None:
         """Reset state for a new conversation."""
-        self.is_running = False
-        self.elapsed_seconds = 0
-        self.pending_actions_count = 0
-        self.input_tokens = 0
-        self.output_tokens = 0
-        self.cache_hit_rate = "N/A"
-        self.last_request_input_tokens = 0
-        self.context_window = 0
-        self.accumulated_cost = 0.0
-        self._conversation_start_time = None
+        def do_reset():
+            self._app.is_running = False
+            self._app.elapsed_seconds = 0
+            self._pending_actions_count = 0
+            self._app.input_tokens = 0
+            self._app.output_tokens = 0
+            self._app.cache_hit_rate = "N/A"
+            self._app.last_request_input_tokens = 0
+            self._app.context_window = 0
+            self._app.accumulated_cost = 0.0
+            self._conversation_start_time = None
+        
+        self._schedule_on_main_thread(do_reset)

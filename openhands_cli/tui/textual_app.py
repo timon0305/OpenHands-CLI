@@ -17,6 +17,7 @@ from rich.console import Console
 from textual import events, getters, on
 from textual.app import App, ComposeResult, SystemCommand
 from textual.containers import Container, Horizontal, VerticalScroll
+from textual.reactive import var
 from textual.screen import Screen
 from textual.widgets import Footer, Input, Static, TextArea
 from textual_autocomplete import AutoComplete
@@ -71,6 +72,18 @@ class OpenHandsApp(CollapsibleNavigationMixin, App):
         ("ctrl+c", "request_quit", "Quit the application"),
         ("ctrl+d", "request_quit", "Quit the application"),
     ]
+    
+    # Reactive state properties for data binding to child widgets.
+    # Child widgets bind to these via: widget.data_bind(OpenHandsApp.is_running)
+    is_running: var[bool] = var(False)
+    elapsed_seconds: var[int] = var(0)
+    is_multiline_mode: var[bool] = var(False)
+    input_tokens: var[int] = var(0)
+    output_tokens: var[int] = var(0)
+    cache_hit_rate: var[str] = var("N/A")
+    last_request_input_tokens: var[int] = var(0)
+    context_window: var[int] = var(0)
+    accumulated_cost: var[float] = var(0.0)
 
     input_field: getters.query_one[InputField] = getters.query_one(InputField)
     main_display: getters.query_one[VerticalScroll] = getters.query_one("#main_display")
@@ -155,8 +168,9 @@ class OpenHandsApp(CollapsibleNavigationMixin, App):
         self.plan_panel: PlanSidePanel = PlanSidePanel(self)
 
         # Initialize centralized state manager for reactive UI updates
-        # This replaces scattered state variables and signal subscriptions
-        self.state_manager = StateManager(cloud_mode=cloud)
+        # StateManager updates the App's reactive properties, which are bound
+        # to child widgets via data_bind(). This replaces signal subscriptions.
+        self.state_manager = StateManager(self, cloud_mode=cloud)
 
         # Register the custom theme
         self.register_theme(OPENHANDS_THEME)
@@ -184,28 +198,26 @@ class OpenHandsApp(CollapsibleNavigationMixin, App):
                 yield Static(id="splash_update_notice", classes="splash-update-notice")
 
             # Input area - docked to bottom
-            # StateManager is the parent container, enabling data_bind for children
-            with self.state_manager:
-                with Container(id="input_area"):
-                    # WorkingStatusLine binds to StateManager reactive properties
-                    yield WorkingStatusLine().data_bind(
-                        is_running=StateManager.is_running,
-                        elapsed_seconds=StateManager.elapsed_seconds,
-                    )
-                    yield InputField(
-                        placeholder="Type your message, @mention a file, or / for commands"
-                    )
-                    # InfoStatusLine binds to StateManager reactive properties
-                    yield InfoStatusLine().data_bind(
-                        is_running=StateManager.is_running,
-                        is_multiline_mode=StateManager.is_multiline_mode,
-                        input_tokens=StateManager.input_tokens,
-                        output_tokens=StateManager.output_tokens,
-                        cache_hit_rate=StateManager.cache_hit_rate,
-                        last_request_input_tokens=StateManager.last_request_input_tokens,
-                        context_window=StateManager.context_window,
-                        accumulated_cost=StateManager.accumulated_cost,
-                    )
+            with Container(id="input_area"):
+                # WorkingStatusLine binds to App's reactive properties
+                yield WorkingStatusLine().data_bind(
+                    is_running=OpenHandsApp.is_running,
+                    elapsed_seconds=OpenHandsApp.elapsed_seconds,
+                )
+                yield InputField(
+                    placeholder="Type your message, @mention a file, or / for commands"
+                )
+                # InfoStatusLine binds to App's reactive properties
+                yield InfoStatusLine().data_bind(
+                    is_running=OpenHandsApp.is_running,
+                    is_multiline_mode=OpenHandsApp.is_multiline_mode,
+                    input_tokens=OpenHandsApp.input_tokens,
+                    output_tokens=OpenHandsApp.output_tokens,
+                    cache_hit_rate=OpenHandsApp.cache_hit_rate,
+                    last_request_input_tokens=OpenHandsApp.last_request_input_tokens,
+                    context_window=OpenHandsApp.context_window,
+                    accumulated_cost=OpenHandsApp.accumulated_cost,
+                )
 
         # Footer - shows available key bindings
         yield Footer()
@@ -224,6 +236,9 @@ class OpenHandsApp(CollapsibleNavigationMixin, App):
 
     def on_mount(self) -> None:
         """Called when app starts."""
+        # Start the state manager's elapsed time timer
+        self.state_manager.start_timer()
+        
         # Check if user has existing settings
         if SettingsScreen.is_initial_setup_required():
             # In headless mode we cannot open interactive settings.
