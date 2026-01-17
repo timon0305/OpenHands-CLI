@@ -117,6 +117,9 @@ class OpenHandsApp(CollapsibleNavigationMixin, App):
         # Store cloud mode settings
         self.cloud = cloud
         self.server_url = server_url
+        # Track if cloud conversation is ready (set to True when we receive
+        # ConversationStateUpdateEvent)
+        self.cloud_conversation_ready = not cloud  # True if not cloud mode
 
         # Store resume conversation ID
         self.conversation_id = (
@@ -365,15 +368,36 @@ class OpenHandsApp(CollapsibleNavigationMixin, App):
         else:
             update_notice_widget.display = False
 
+        # Show cloud setup indicator if in cloud mode
+        if self.cloud:
+            self._show_cloud_setup_indicator()
+
         # Process any queued inputs
         self._process_queued_inputs()
         self.is_ui_initialized = True
 
+    def _show_cloud_setup_indicator(self) -> None:
+        """Show indicator that cloud conversation is being set up."""
+        setup_widget = Static(
+            f"[{OPENHANDS_THEME.warning}]☁️  Setting up cloud conversation... "
+            f"Please wait.[/{OPENHANDS_THEME.warning}]",
+            id="cloud_setup_indicator",
+            classes="cloud-setup-indicator",
+        )
+        self.main_display.mount(setup_widget)
+        self.main_display.scroll_end(animate=False)
+
     def create_conversation_runner(self) -> ConversationRunner:
         # Initialize conversation runner with visualizer that can add widgets
         # Skip user messages since we display them immediately in the UI
+        # Pass callback for cloud conversation ready signal
         visualizer = ConversationVisualizer(
-            self.main_display, self, skip_user_messages=True
+            self.main_display,
+            self,
+            skip_user_messages=True,
+            on_conversation_ready=self._on_cloud_conversation_ready
+            if self.cloud
+            else None,
         )
 
         # Create JSON callback if in JSON mode
@@ -396,6 +420,35 @@ class OpenHandsApp(CollapsibleNavigationMixin, App):
         )
 
         return runner
+
+    def _on_cloud_conversation_ready(self) -> None:
+        """Called when cloud conversation is ready.
+
+        Triggered when ConversationStateUpdateEvent is received.
+        """
+        self.cloud_conversation_ready = True
+
+        # Remove the setup indicator if it exists
+        try:
+            setup_indicator = self.query_one("#cloud_setup_indicator", Static)
+            setup_indicator.remove()
+        except Exception:
+            pass  # Indicator may not exist
+
+        # Show ready message
+        ready_widget = Static(
+            f"[{OPENHANDS_THEME.success}]☁️  Cloud conversation ready! "
+            f"You can now send messages.[/{OPENHANDS_THEME.success}]",
+            classes="cloud-ready-indicator",
+        )
+        self.main_display.mount(ready_widget)
+        self.main_display.scroll_end(animate=False)
+
+        self.notify(
+            title="Cloud Ready",
+            message="Cloud conversation is ready. You can now send messages.",
+            severity="information",
+        )
 
     def _process_queued_inputs(self) -> None:
         """Process any queued inputs from --task or --file arguments.
@@ -466,6 +519,15 @@ class OpenHandsApp(CollapsibleNavigationMixin, App):
 
     async def _handle_user_message(self, user_message: str) -> None:
         """Handle regular user messages with the conversation runner."""
+        # Check if cloud conversation is ready (for cloud mode)
+        if self.cloud and not self.cloud_conversation_ready:
+            self.notify(
+                title="Cloud Setup in Progress",
+                message="Please wait for the cloud conversation to be ready.",
+                severity="warning",
+            )
+            return
+
         # Check if conversation runner is initialized
         if self.conversation_runner is None:
             self.conversation_runner = self.create_conversation_runner()
