@@ -373,10 +373,6 @@ class OpenHandsApp(CollapsibleNavigationMixin, App):
         else:
             update_notice_widget.display = False
 
-        # Show cloud setup indicator if in cloud mode
-        if self.cloud:
-            self._show_cloud_setup_indicator()
-
         # Process any queued inputs
         self._process_queued_inputs()
         self.is_ui_initialized = True
@@ -522,6 +518,13 @@ class OpenHandsApp(CollapsibleNavigationMixin, App):
 
     async def _handle_user_message(self, user_message: str) -> None:
         """Handle regular user messages with the conversation runner."""
+        # Check if conversation runner is initialized
+        if self.conversation_runner is None:
+            # Show cloud setup indicator before creating runner (which sets up sandbox)
+            if self.cloud:
+                self._show_cloud_setup_indicator()
+            self.conversation_runner = self.create_conversation_runner()
+
         # Check if cloud conversation is ready (for cloud mode)
         if self.cloud and not self.cloud_conversation_ready:
             self.notify(
@@ -529,10 +532,6 @@ class OpenHandsApp(CollapsibleNavigationMixin, App):
                 message="Please wait for the cloud conversation to be ready.",
                 severity="warning",
             )
-
-        # Check if conversation runner is initialized
-        if self.conversation_runner is None:
-            self.conversation_runner = self.create_conversation_runner()
 
         # Show that we're processing the message
         if self.conversation_runner.is_running:
