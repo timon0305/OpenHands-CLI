@@ -179,9 +179,8 @@ def main() -> None:
                     args, "exit_without_confirmation", False
                 ),
                 headless=getattr(args, "headless", False),
-                json_mode=getattr(args, "json", False) and getattr(
-                    args, "headless", False
-                ),
+                json_mode=getattr(args, "json", False)
+                and getattr(args, "headless", False),
                 cloud=True,
                 server_url=args.server_url,
             )

@@ -168,8 +168,9 @@ def setup_cloud_conversation(
     Raises:
         ValueError: If API key is not available.
     """
-    from openhands.workspace import OpenHandsCloudWorkspace
+    import os
 
+    from openhands.workspace import OpenHandsCloudWorkspace
     from openhands_cli.cloud.conversation import require_api_key
 
     console = Console()
@@ -179,8 +180,6 @@ def setup_cloud_conversation(
 
     # Use default server URL if not provided
     if not server_url:
-        import os
-
         server_url = os.getenv("OPENHANDS_CLOUD_URL", "https://app.all-hands.dev")
 
     # Load agent specs for the conversation
@@ -188,9 +187,8 @@ def setup_cloud_conversation(
 
     # Create cloud workspace
     workspace = OpenHandsCloudWorkspace(
-        api_key=api_key,
-        server_url=server_url,
-        conversation_id=str(conversation_id),
+        cloud_api_url=server_url,
+        cloud_api_key=api_key,
     )
 
     # Prepare callbacks list
