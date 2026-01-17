@@ -1,9 +1,21 @@
-"""Conversation runner with confirmation mode support for the refactored UI."""
+"""Conversation runner with confirmation mode support for the refactored UI.
+
+This module supports two state management patterns:
+
+1. Legacy callback pattern (for backward compatibility):
+   - Pass running_state_callback to receive running state changes
+   - Pass notification_callback for notifications
+   
+2. Reactive StateManager pattern (recommended):
+   - Pass state_manager parameter
+   - StateManager properties are updated directly
+   - UI components bind to StateManager via data_bind()
+"""
 
 import asyncio
 import uuid
 from collections.abc import Callable
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from rich.console import Console
 from rich.text import Text
@@ -31,35 +43,69 @@ from openhands_cli.setup import setup_conversation
 from openhands_cli.tui.widgets.richlog_visualizer import ConversationVisualizer
 from openhands_cli.user_actions.types import UserConfirmation
 
+if TYPE_CHECKING:
+    from openhands_cli.tui.core.state import StateManager
+
 
 class ConversationRunner:
-    """Conversation runner with confirmation mode support for the refactored UI."""
+    """Conversation runner with confirmation mode support for the refactored UI.
+    
+    This class manages the lifecycle of a conversation, including:
+    - Processing user messages
+    - Handling confirmation mode for actions
+    - Updating state (via callbacks or StateManager)
+    - Managing cloud workspace reconnection
+    
+    State Management:
+        The runner supports two patterns for state updates:
+        
+        1. Callback Pattern (legacy):
+            runner = ConversationRunner(
+                running_state_callback=lambda running: update_ui(running),
+                notification_callback=lambda t, m, s: show_notification(t, m, s),
+                ...
+            )
+        
+        2. StateManager Pattern (recommended):
+            runner = ConversationRunner(
+                state_manager=app.state_manager,
+                ...
+            )
+            # State changes automatically propagate to bound widgets
+    """
 
     def __init__(
         self,
         conversation_id: uuid.UUID,
-        running_state_callback: Callable[[bool], None],
-        confirmation_callback: Callable,
-        notification_callback: Callable[[str, str, SeverityLevel], None],
-        visualizer: ConversationVisualizer,
+        running_state_callback: Callable[[bool], None] | None = None,
+        confirmation_callback: Callable | None = None,
+        notification_callback: Callable[[str, str, SeverityLevel], None] | None = None,
+        visualizer: ConversationVisualizer | None = None,
         initial_confirmation_policy: ConfirmationPolicyBase | None = None,
         event_callback: Callable[[Event], None] | None = None,
         cloud: bool = False,
         server_url: str | None = None,
         sandbox_id: str | None = None,
+        state_manager: "StateManager | None" = None,
     ):
         """Initialize the conversation runner.
 
         Args:
             conversation_id: UUID for the conversation.
-            error_callback: Callback for handling errors.
-                          Should accept (error_title: str, error_message: str).
-            visualizer: Optional visualizer for output display.
+            running_state_callback: Legacy callback for running state changes.
+                                   Prefer using state_manager instead.
+            confirmation_callback: Callback for handling action confirmations.
+            notification_callback: Legacy callback for notifications.
+                                  Prefer using state_manager instead.
+            visualizer: Visualizer for output display.
             initial_confirmation_policy: Initial confirmation policy to use.
                                         If None, defaults to AlwaysConfirm.
+            event_callback: Optional callback for each event.
             cloud: If True, use OpenHands Cloud for remote execution.
             server_url: The OpenHands Cloud server URL (used when cloud=True).
             sandbox_id: Optional sandbox ID to reclaim an existing sandbox.
+            state_manager: StateManager for reactive state updates.
+                          If provided, running_state_callback is optional.
         """
         starting_confirmation_policy = initial_confirmation_policy or AlwaysConfirm()
         self.visualizer = visualizer
@@ -71,6 +117,12 @@ class ConversationRunner:
         self._conversation_id = conversation_id
         self._event_callback = event_callback
         self._initial_confirmation_policy = starting_confirmation_policy
+        
+        # State management - prefer StateManager over callbacks
+        self._state_manager = state_manager
+        self._running_state_callback = running_state_callback
+        self._confirmation_callback = confirmation_callback
+        self._notification_callback = notification_callback
 
         self.conversation: BaseConversation = setup_conversation(
             conversation_id,
@@ -88,11 +140,13 @@ class ConversationRunner:
         self._confirmation_mode_active = not isinstance(
             starting_confirmation_policy, NeverConfirm
         )
-        self._running_state_callback: Callable = running_state_callback
-        self._confirmation_callback: Callable = confirmation_callback
-        self._notification_callback: Callable[[str, str, SeverityLevel], None] = (
-            notification_callback
-        )
+        
+        # Initialize StateManager state if provided
+        if self._state_manager:
+            self._state_manager.set_confirmation_mode(self._confirmation_mode_active)
+            self._state_manager.cloud_mode = cloud
+            if not cloud:
+                self._state_manager.cloud_ready = True
 
     @property
     def is_confirmation_mode_active(self) -> bool:
@@ -329,6 +383,10 @@ class ConversationRunner:
             self._confirmation_mode_active = False
         else:
             self._confirmation_mode_active = True
+        
+        # Update StateManager if available
+        if self._state_manager:
+            self._state_manager.set_confirmation_mode(self._confirmation_mode_active)
 
     @property
     def is_running(self) -> bool:
@@ -384,9 +442,21 @@ class ConversationRunner:
                 "error",
             )
 
-    def _update_run_status(self, is_running: bool):
+    def _update_run_status(self, is_running: bool) -> None:
+        """Update the running status via StateManager and/or callbacks.
+        
+        This method supports both the new StateManager pattern and legacy
+        callback pattern for backward compatibility.
+        """
         self._running = is_running
-        self._running_state_callback(is_running)
+        
+        # Update StateManager if available (preferred)
+        if self._state_manager:
+            self._state_manager.set_running(is_running)
+        
+        # Also call legacy callback if provided (for backward compatibility)
+        if self._running_state_callback:
+            self._running_state_callback(is_running)
 
     def pause_runner_without_blocking(self):
         if self.is_running:
