@@ -14,7 +14,11 @@ from dotenv import load_dotenv
 from rich.console import Console
 
 from openhands_cli.argparsers.main_parser import create_main_parser
-from openhands_cli.stores import check_and_warn_env_vars, set_env_overrides_enabled
+from openhands_cli.stores import (
+    check_and_warn_env_vars,
+    set_critic_disabled,
+    set_env_overrides_enabled,
+)
 from openhands_cli.terminal_compat import check_terminal_compatibility
 from openhands_cli.theme import OPENHANDS_THEME
 from openhands_cli.utils import create_seeded_instructions_from_args
@@ -101,8 +105,10 @@ def main() -> None:
         parser.error("--headless requires either --task or --file to be specified")
 
     # Automatically set exit_without_confirmation when headless mode is used
+    # Also disable critic in headless mode
     if args.headless:
         args.exit_without_confirmation = True
+        set_critic_disabled(True)
 
     # Handle --override-with-envs flag
     override_with_envs = getattr(args, "override_with_envs", False)

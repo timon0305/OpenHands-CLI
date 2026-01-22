@@ -128,6 +128,9 @@ ENV_LLM_MODEL = "LLM_MODEL"
 # Global flag to control whether env overrides are applied
 _apply_env_overrides: bool = False
 
+# Global flag to control whether critic is disabled (e.g., in headless mode)
+_disable_critic: bool = False
+
 
 def set_env_overrides_enabled(enabled: bool) -> None:
     """Set whether environment variable overrides should be applied.
@@ -147,6 +150,26 @@ def get_env_overrides_enabled() -> bool:
         True if env overrides are enabled, False otherwise.
     """
     return _apply_env_overrides
+
+
+def set_critic_disabled(disabled: bool) -> None:
+    """Set whether critic functionality should be disabled.
+
+    Args:
+        disabled: If True, critic will be disabled (e.g., for headless mode).
+                  If False (default), critic is enabled based on settings.
+    """
+    global _disable_critic
+    _disable_critic = disabled
+
+
+def get_critic_disabled() -> bool:
+    """Get whether critic functionality is disabled.
+
+    Returns:
+        True if critic is disabled, False otherwise.
+    """
+    return _disable_critic
 
 
 def check_and_warn_env_vars() -> None:
@@ -354,11 +377,13 @@ class AgentStore:
                 )
             condenser = LLMSummarizingCondenser(llm=condenser_llm)
 
-        # Auto-configure critic if applicable
+        # Auto-configure critic if applicable (disabled in headless mode)
         cli_settings = CliSettings.load()
-        critic = get_default_critic(
-            updated_llm, enable_critic=cli_settings.enable_critic
-        )
+        critic = None
+        if not get_critic_disabled():
+            critic = get_default_critic(
+                updated_llm, enable_critic=cli_settings.enable_critic
+            )
 
         # Update tools and context
         agent = agent.model_copy(
