@@ -14,18 +14,23 @@ from openhands_cli.stores.agent_store import (
     LLMEnvOverrides,
     apply_llm_overrides,
     check_and_warn_env_vars,
+    get_critic_disabled,
     get_env_overrides_enabled,
+    set_critic_disabled,
     set_env_overrides_enabled,
 )
 
 
 @pytest.fixture(autouse=True)
 def reset_env_overrides_flag():
-    """Reset the env overrides flag before and after each test."""
-    original_value = get_env_overrides_enabled()
+    """Reset the env overrides and critic flags before and after each test."""
+    original_env_value = get_env_overrides_enabled()
+    original_critic_value = get_critic_disabled()
     set_env_overrides_enabled(False)
+    set_critic_disabled(False)
     yield
-    set_env_overrides_enabled(original_value)
+    set_env_overrides_enabled(original_env_value)
+    set_critic_disabled(original_critic_value)
 
 
 class TestEnvOverridesFlag:
@@ -469,3 +474,49 @@ class TestAgentStoreEnvOverrides:
             assert isinstance(loaded_agent.condenser.llm.api_key, SecretStr)
             assert loaded_agent.condenser.llm.api_key.get_secret_value() == "env-key"
             assert loaded_agent.condenser.llm.model == "env-model"
+
+
+def test_agent_created_from_env_vars_without_settings_file_and_critic_disabled(
+    tmp_path,
+) -> None:
+    """Test that agent is created from env vars when no settings file exists.
+
+    Also verifies that critic is disabled when the critic_disabled flag is set.
+    This simulates headless mode behavior.
+    """
+    import openhands_cli.stores.agent_store as agent_store_module
+    from openhands_cli.stores import AgentStore
+
+    # Create empty temp dir (no settings file)
+    conversations_dir = tmp_path / "conversations"
+    conversations_dir.mkdir(exist_ok=True)
+
+    # Enable env overrides and disable critic (simulating headless mode)
+    set_env_overrides_enabled(True)
+    set_critic_disabled(True)
+
+    env_vars = {
+        ENV_LLM_API_KEY: "test-api-key-from-env",
+        ENV_LLM_BASE_URL: "https://test.env.url/",
+        ENV_LLM_MODEL: "test-env-model",
+    }
+
+    # Patch the PERSISTENCE_DIR at the module level before creating AgentStore
+    with (
+        patch.object(agent_store_module, "PERSISTENCE_DIR", str(tmp_path)),
+        patch.object(agent_store_module, "CONVERSATIONS_DIR", str(conversations_dir)),
+        patch.dict(os.environ, env_vars, clear=False),
+    ):
+        store = AgentStore()
+        agent = store.load()
+
+        # Verify agent was created from env vars
+        assert agent is not None
+        assert agent.llm.api_key is not None
+        assert isinstance(agent.llm.api_key, SecretStr)
+        assert agent.llm.api_key.get_secret_value() == "test-api-key-from-env"
+        assert agent.llm.base_url == "https://test.env.url/"
+        assert agent.llm.model == "test-env-model"
+
+        # Verify critic is disabled
+        assert agent.critic is None
