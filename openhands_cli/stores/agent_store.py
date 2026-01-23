@@ -317,12 +317,10 @@ class AgentStore:
             if llm_update:
                 updated_llm = updated_llm.model_copy(update=llm_update)
 
-            # Always create a fresh condenser with current defaults if condensation
-            # is enabled. This ensures users get the latest condenser settings
-            # (e.g., max_size, keep_first) without needing to reconfigure.
+            # Preserve user condenser configuration from disk.
+            # Only apply env overrides + runtime metadata to the condenser LLM.
             condenser = None
             if agent.condenser and isinstance(agent.condenser, LLMSummarizingCondenser):
-                # Apply environment variable overrides to condenser LLM as well
                 condenser_llm = apply_llm_overrides(agent.condenser.llm, env_overrides)
 
                 condenser_llm_update: dict[str, Any] = {}
@@ -340,7 +338,8 @@ class AgentStore:
                     condenser_llm = condenser_llm.model_copy(
                         update=condenser_llm_update
                     )
-                condenser = LLMSummarizingCondenser(llm=condenser_llm)
+
+                condenser = agent.condenser.model_copy(update={"llm": condenser_llm})
 
             # Auto-configure critic if applicable
             cli_settings = CliSettings.load()
