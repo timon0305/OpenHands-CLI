@@ -471,7 +471,7 @@ class AgentStore:
 
         api_key = env_overrides.api_key.get_secret_value()
         model = env_overrides.model
-        base_url = env_overrides.base_url or DEFAULT_LLM_BASE_URL
+        base_url = env_overrides.base_url
 
         llm = LLM(
             model=model,
