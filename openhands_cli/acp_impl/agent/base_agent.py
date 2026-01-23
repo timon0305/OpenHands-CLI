@@ -224,31 +224,25 @@ class BaseOpenHandsACPAgent(ACPAgent, ABC):
         """Initialize the ACP protocol."""
         logger.info(f"Initializing ACP with protocol version: {protocol_version}")
 
-        try:
-            load_agent_specs()
-            auth_methods = [
-                AuthMethod(
-                    description="Authenticate through agent",
-                    id="oauth",
-                    name="OAuth with OpenHands Cloud",
-                    field_meta={"type": "agent"},
-                ),
-                AuthMethod(
-                    id="terminal-login",
-                    name="Login via Terminal",
-                    description="Interactive terminal login",
-                    field_meta={
-                        "type": "terminal",
-                        "args": ["login"],
-                        "env": {},
-                    },
-                ),
-            ]
-            logger.info("Agent configured, no authentication required")
-        except MissingAgentSpec:
-            auth_methods = []
-            logger.warning("Agent not configured - users should run 'openhands' first")
-
+        auth_methods = [
+            AuthMethod(
+                description="Authenticate through agent",
+                id="oauth",
+                name="OAuth with OpenHands Cloud",
+                field_meta={"type": "agent"},
+            ),
+            AuthMethod(
+                id="terminal-login",
+                name="Login via Terminal",
+                description="Interactive terminal login",
+                field_meta={
+                    "type": "terminal",
+                    "args": ["login"],
+                    "env": {},
+                },
+            ),
+        ]
+        
         return InitializeResponse(
             protocol_version=protocol_version,
             auth_methods=auth_methods,
