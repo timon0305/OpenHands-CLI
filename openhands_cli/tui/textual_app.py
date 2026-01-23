@@ -66,7 +66,7 @@ from openhands_cli.tui.widgets.status_line import (
 )
 from openhands_cli.user_actions.types import UserConfirmation
 from openhands_cli.utils import json_callback
-
+from openhands_cli.stores import AgentStore, MissingEnvironmentVariablesError
 
 class OpenHandsApp(CollapsibleNavigationMixin, App):
     """A minimal textual app for OpenHands CLI with scrollable main display."""
@@ -353,8 +353,6 @@ class OpenHandsApp(CollapsibleNavigationMixin, App):
         # Check if agent has critic configured
         has_critic = False
         try:
-            from openhands_cli.stores import AgentStore
-
             agent_store = AgentStore()
             agent = agent_store.load()
             if agent:
@@ -909,7 +907,13 @@ def main(
             required environment variables are missing. This is re-raised to be
             handled by the entrypoint for clean error display.
     """
-    from openhands_cli.stores import MissingEnvironmentVariablesError
+
+    # Determine if envs are required to be configured
+    # Raise error before textual app is run to avoid traceback
+    try:
+        SettingsScreen.is_initial_setup_required()
+    except MissingEnvironmentVariablesError as e:
+        raise e
 
     # Determine initial confirmation policy from CLI arguments
     # If headless mode is enabled, always use NeverConfirm (auto-approve all actions)
@@ -930,11 +934,7 @@ def main(
         json_mode=json_mode,
     )
 
-    try:
-        app.run(headless=headless)
-    except MissingEnvironmentVariablesError:
-        # Re-raise to be handled by the entrypoint for clean error display
-        raise
+    app.run(headless=headless)
 
     return app.conversation_id
 
