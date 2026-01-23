@@ -31,6 +31,7 @@ from openhands_cli.locations import (
 from openhands_cli.mcp.mcp_utils import list_enabled_servers
 from openhands_cli.stores.cli_settings import CliSettings
 from openhands_cli.utils import (
+    get_default_cli_agent,
     get_default_cli_tools,
     get_llm_metadata,
     get_os_description,
@@ -428,23 +429,7 @@ class AgentStore:
             usage_id="agent",
         )
 
-        condenser_llm = LLM(
-            model=model,
-            api_key=api_key,
-            base_url=base_url,
-            usage_id="condenser",
-        )
-
-        condenser = LLMSummarizingCondenser(llm=condenser_llm)
-
-        agent = Agent(
-            llm=llm,
-            tools=get_default_cli_tools(),
-            mcp_config={},
-            condenser=condenser,
-        )
-
-        return agent
+        return get_default_cli_agent(llm)
 
     def save(self, agent: Agent) -> None:
         serialized_spec = agent.model_dump_json(context={"expose_secrets": True})
