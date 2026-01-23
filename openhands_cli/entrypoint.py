@@ -119,6 +119,19 @@ def main() -> None:
     if not override_with_envs:
         check_and_warn_env_vars()
 
+    # Validate environment variables early if --override-with-envs is enabled
+    # This ensures a clean error message before any UI starts
+    if override_with_envs:
+        from openhands_cli.stores import AgentStore
+
+        try:
+            AgentStore().load()
+        except MissingEnvironmentVariablesError as e:
+            console.print(
+                f"[{OPENHANDS_THEME.error}]Error:[/{OPENHANDS_THEME.error}] {e}"
+            )
+            sys.exit(1)
+
     try:
         if args.command == "serve":
             # Import gui_launcher only when needed
@@ -208,16 +221,6 @@ def main() -> None:
                 # Either showed conversation list or had an error
                 return
 
-            # Pre-check for missing environment variables before starting the app
-            # This ensures the error is displayed cleanly without the app's traceback
-            from openhands_cli.stores import AgentStore
-
-            try:
-                agent_store = AgentStore()
-                agent_store.load()
-            except MissingEnvironmentVariablesError:
-                raise  # Re-raise to be caught by the outer handler
-
             # Use textual-based UI as default
             from openhands_cli.tui.textual_app import main as textual_main
 
@@ -245,9 +248,6 @@ def main() -> None:
         console.print("\nGoodbye! 👋", style=OPENHANDS_THEME.warning)
     except EOFError:
         console.print("\nGoodbye! 👋", style=OPENHANDS_THEME.warning)
-    except MissingEnvironmentVariablesError as e:
-        console.print(f"[{OPENHANDS_THEME.error}]Error:[/{OPENHANDS_THEME.error}] {e}")
-        sys.exit(1)
     except Exception as e:
         console.print(f"Error: {str(e)}", style=OPENHANDS_THEME.error, markup=False)
         import traceback
