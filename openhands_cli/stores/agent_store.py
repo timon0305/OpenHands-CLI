@@ -243,44 +243,106 @@ class AgentStore:
     def __init__(self) -> None:
         self.file_store = LocalFileStore(root=PERSISTENCE_DIR)
 
-    def load(
+    def load_from_disk(self) -> Agent | None:
+        """Load an agent configuration from disk storage.
+
+        This method only loads the persisted agent configuration. It does not
+        apply runtime configuration or create agents from environment variables.
+
+        Returns:
+            Raw Agent instance from disk, or None if no configuration exists
+            or the file is corrupted.
+        """
+        try:
+            str_spec = self.file_store.read(AGENT_SETTINGS_PATH)
+            return Agent.model_validate_json(str_spec)
+        except FileNotFoundError:
+            return None
+        except Exception:
+            print_formatted_text(
+                HTML("\n<red>Agent configuration file is corrupted!</red>")
+            )
+            return None
+
+    def create_from_env_overrides(self) -> Agent:
+        """Create an Agent from environment variables.
+
+        This method creates a new agent configuration from environment variables
+        (LLM_API_KEY, LLM_MODEL, LLM_BASE_URL). Use this when no persisted
+        configuration exists and the CLI is running in headless/env-override mode.
+
+        Returns:
+            Agent instance configured from environment variables.
+
+        Raises:
+            MissingEnvironmentVariablesError: If required environment variables
+                (LLM_API_KEY, LLM_MODEL) are not set.
+        """
+        env_overrides = LLMEnvOverrides.from_env(enabled=True)
+
+        # Check for required environment variables
+        missing_vars = []
+        if env_overrides.api_key is None:
+            missing_vars.append(ENV_LLM_API_KEY)
+        if env_overrides.model is None:
+            missing_vars.append(ENV_LLM_MODEL)
+
+        if missing_vars:
+            raise MissingEnvironmentVariablesError(missing_vars)
+
+        # At this point, api_key and model are guaranteed to be non-None
+        assert env_overrides.api_key is not None
+        assert env_overrides.model is not None
+
+        api_key = env_overrides.api_key.get_secret_value()
+        model = env_overrides.model
+        base_url = env_overrides.base_url
+
+        llm = LLM(
+            model=model,
+            api_key=api_key,
+            base_url=base_url,
+            usage_id="agent",
+        )
+
+        return get_default_cli_agent(llm)
+
+    def load_or_create(
         self,
         session_id: str | None = None,
         *,
         env_overrides_enabled: bool = False,
         critic_disabled: bool = False,
     ) -> Agent | None:
-        """Load an agent configuration with runtime options.
+        """Load agent from disk, or create from env vars if disk load fails.
+
+        This is the main entry point for the CLI to get a configured agent.
+        It orchestrates the policy of falling back to environment variables
+        when no persisted configuration exists.
 
         Args:
             session_id: Optional session ID for metadata tracking and tool restoration.
-            env_overrides_enabled: If True, environment variables (LLM_API_KEY,
-                LLM_BASE_URL, LLM_MODEL) will override stored LLM settings.
+            env_overrides_enabled: If True and no disk config exists, create agent
+                from environment variables. Also applies env var overrides to
+                LLM settings when loading from disk.
             critic_disabled: If True, critic functionality will be disabled
                 (e.g., for headless mode).
 
         Returns:
-            Configured Agent instance, or None if no configuration exists.
+            Configured Agent instance, or None if no configuration exists and
+            env_overrides_enabled is False.
 
         Raises:
-            MissingEnvironmentVariablesError: If env_overrides_enabled is True but
-                required environment variables are missing.
+            MissingEnvironmentVariablesError: If env_overrides_enabled is True,
+                no disk config exists, and required environment variables are missing.
         """
-        agent: Agent | None = None
+        agent = self.load_from_disk()
 
-        try:
-            str_spec = self.file_store.read(AGENT_SETTINGS_PATH)
-            agent = Agent.model_validate_json(str_spec)
-        except FileNotFoundError:
-            # No settings file exists - try to create from env vars if enabled
-            agent = self._create_agent_from_env_overrides(env_overrides_enabled)
-            if agent is None:
+        if agent is None:
+            # No disk config - try env vars if enabled
+            if not env_overrides_enabled:
                 return None
-        except Exception:
-            print_formatted_text(
-                HTML("\n<red>Agent configuration file is corrupted!</red>")
-            )
-            return None
+            agent = self.create_from_env_overrides()
 
         # Apply runtime configuration (tools, context, MCP, condenser, critic)
         return self._apply_runtime_config(
@@ -404,58 +466,6 @@ class AgentStore:
                 "critic": critic,
             }
         )
-
-    def _create_agent_from_env_overrides(
-        self, env_overrides_enabled: bool
-    ) -> Agent | None:
-        """Create an Agent from environment variables when no settings file exists.
-
-        This is used when env_overrides_enabled is True and LLM_API_KEY
-        and LLM_MODEL are set, allowing headless mode to work without
-        pre-configured settings.
-
-        Args:
-            env_overrides_enabled: Whether environment variable overrides are enabled.
-
-        Returns:
-            Agent instance if env overrides are enabled and required env vars are set,
-            None if env overrides are not enabled.
-
-        Raises:
-            MissingEnvironmentVariablesError: If env overrides are enabled but
-                required environment variables (LLM_API_KEY, LLM_MODEL) are missing.
-        """
-        if not env_overrides_enabled:
-            return None
-
-        env_overrides = LLMEnvOverrides.from_env(enabled=True)
-
-        # Check for required environment variables
-        missing_vars = []
-        if env_overrides.api_key is None:
-            missing_vars.append(ENV_LLM_API_KEY)
-        if env_overrides.model is None:
-            missing_vars.append(ENV_LLM_MODEL)
-
-        if missing_vars:
-            raise MissingEnvironmentVariablesError(missing_vars)
-
-        # At this point, api_key and model are guaranteed to be non-None
-        assert env_overrides.api_key is not None
-        assert env_overrides.model is not None
-
-        api_key = env_overrides.api_key.get_secret_value()
-        model = env_overrides.model
-        base_url = env_overrides.base_url
-
-        llm = LLM(
-            model=model,
-            api_key=api_key,
-            base_url=base_url,
-            usage_id="agent",
-        )
-
-        return get_default_cli_agent(llm)
 
     def save(self, agent: Agent) -> None:
         serialized_spec = agent.model_dump_json(context={"expose_secrets": True})

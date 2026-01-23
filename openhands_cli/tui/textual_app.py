@@ -373,7 +373,7 @@ class OpenHandsApp(CollapsibleNavigationMixin, App):
         has_critic = False
         try:
             agent_store = AgentStore()
-            agent = agent_store.load(
+            agent = agent_store.load_or_create(
                 env_overrides_enabled=self.env_overrides_enabled,
                 critic_disabled=self.critic_disabled,
             )

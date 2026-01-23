@@ -260,7 +260,7 @@ class TestApplyLlmOverrides:
 
 
 class TestAgentStoreEnvOverrides:
-    """Integration tests for AgentStore.load() with environment variable overrides."""
+    """Integration tests for AgentStore.load_or_create() with environment variable overrides."""
 
     def test_env_vars_ignored_when_disabled(self, setup_test_agent_config) -> None:
         """Environment variables should be ignored when env_overrides_enabled=False."""
@@ -286,7 +286,7 @@ class TestAgentStoreEnvOverrides:
         }
 
         with patch.dict(os.environ, env_vars, clear=False):
-            loaded_agent = store.load(env_overrides_enabled=False)
+            loaded_agent = store.load_or_create(env_overrides_enabled=False)
 
             assert loaded_agent is not None
             # Should use stored values, not env vars
@@ -311,7 +311,7 @@ class TestAgentStoreEnvOverrides:
 
         with patch.dict(os.environ, env_vars, clear=False):
             store = AgentStore()
-            agent = store.load(env_overrides_enabled=True)
+            agent = store.load_or_create(env_overrides_enabled=True)
 
             assert agent is not None
             assert agent.llm.api_key is not None
@@ -343,7 +343,7 @@ class TestAgentStoreEnvOverrides:
             ENV_LLM_BASE_URL: "",  # Clear any existing base URL env var
         }
         with patch.dict(os.environ, env_patch, clear=False):
-            loaded_agent = store.load(env_overrides_enabled=True)
+            loaded_agent = store.load_or_create(env_overrides_enabled=True)
 
             assert loaded_agent is not None
             # Model should be overridden
@@ -371,7 +371,7 @@ class TestAgentStoreEnvOverrides:
 
         # Load with env override enabled
         with patch.dict(os.environ, {ENV_LLM_MODEL: "temp-override-model"}):
-            agent_with_override = store.load(env_overrides_enabled=True)
+            agent_with_override = store.load_or_create(env_overrides_enabled=True)
             assert agent_with_override is not None
             assert agent_with_override.llm.model == "temp-override-model"
 
@@ -381,7 +381,7 @@ class TestAgentStoreEnvOverrides:
             original_env.pop(key, None)
 
         with patch.dict(os.environ, original_env, clear=True):
-            agent_without_override = store.load(env_overrides_enabled=False)
+            agent_without_override = store.load_or_create(env_overrides_enabled=False)
             assert agent_without_override is not None
             # Should be back to original stored model
             assert agent_without_override.llm.model == "original-stored-model"
@@ -415,7 +415,7 @@ class TestAgentStoreEnvOverrides:
             ENV_LLM_MODEL: "env-model",
         }
         with patch.dict(os.environ, env_vars, clear=False):
-            loaded_agent = store.load(env_overrides_enabled=True)
+            loaded_agent = store.load_or_create(env_overrides_enabled=True)
 
             assert loaded_agent is not None
             assert loaded_agent.condenser is not None
@@ -453,7 +453,7 @@ class TestAgentCreationFromEnvVars:
             patch.dict(os.environ, env_vars, clear=False),
         ):
             store = AgentStore()
-            agent = store.load(env_overrides_enabled=True)
+            agent = store.load_or_create(env_overrides_enabled=True)
 
             assert agent is not None
             assert agent.llm.api_key is not None
@@ -489,7 +489,7 @@ class TestAgentCreationFromEnvVars:
             store = AgentStore()
 
             with pytest.raises(MissingEnvironmentVariablesError) as exc_info:
-                store.load(env_overrides_enabled=True)
+                store.load_or_create(env_overrides_enabled=True)
 
             assert ENV_LLM_MODEL in exc_info.value.missing_vars
             assert ENV_LLM_API_KEY not in exc_info.value.missing_vars
@@ -520,7 +520,7 @@ class TestAgentCreationFromEnvVars:
             store = AgentStore()
 
             with pytest.raises(MissingEnvironmentVariablesError) as exc_info:
-                store.load(env_overrides_enabled=True)
+                store.load_or_create(env_overrides_enabled=True)
 
             assert ENV_LLM_API_KEY in exc_info.value.missing_vars
             assert ENV_LLM_MODEL not in exc_info.value.missing_vars
@@ -548,7 +548,7 @@ class TestAgentCreationFromEnvVars:
             store = AgentStore()
 
             with pytest.raises(MissingEnvironmentVariablesError) as exc_info:
-                store.load(env_overrides_enabled=True)
+                store.load_or_create(env_overrides_enabled=True)
 
             assert ENV_LLM_API_KEY in exc_info.value.missing_vars
             assert ENV_LLM_MODEL in exc_info.value.missing_vars
@@ -573,7 +573,7 @@ class TestAgentCreationFromEnvVars:
             patch.dict(os.environ, env_vars, clear=False),
         ):
             store = AgentStore()
-            agent = store.load(env_overrides_enabled=False)
+            agent = store.load_or_create(env_overrides_enabled=False)
 
             # Should return None since env overrides are disabled
             assert agent is None
@@ -603,7 +603,7 @@ class TestCriticBehaviorInAgentCreation:
             patch.dict(os.environ, env_vars, clear=False),
         ):
             store = AgentStore()
-            agent = store.load(env_overrides_enabled=True, critic_disabled=True)
+            agent = store.load_or_create(env_overrides_enabled=True, critic_disabled=True)
 
             assert agent is not None
             # Critic should be None when disabled
@@ -637,7 +637,7 @@ class TestCriticBehaviorInAgentCreation:
             patch.object(CliSettings, "load", return_value=mock_settings),
         ):
             store = AgentStore()
-            agent = store.load(env_overrides_enabled=True, critic_disabled=False)
+            agent = store.load_or_create(env_overrides_enabled=True, critic_disabled=False)
 
             assert agent is not None
             # Critic should be enabled (not None) when disabled=False

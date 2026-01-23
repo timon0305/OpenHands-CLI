@@ -28,6 +28,9 @@ def load_agent_specs(
     conversation_id: str | None = None,
     mcp_servers: dict[str, dict[str, Any]] | None = None,
     skills: list[Skill] | None = None,
+    *,
+    env_overrides_enabled: bool = False,
+    critic_disabled: bool = False,
 ) -> Agent:
     """Load agent specifications.
 
@@ -35,6 +38,10 @@ def load_agent_specs(
         conversation_id: Optional conversation ID for session tracking
         mcp_servers: Optional dict of MCP servers to augment agent configuration
         skills: Optional list of skills to include in the agent configuration
+        env_overrides_enabled: If True, environment variables will override
+            stored LLM settings, and agent can be created from env vars if no
+            disk config exists.
+        critic_disabled: If True, critic functionality will be disabled.
 
     Returns:
         Configured Agent instance
@@ -43,7 +50,11 @@ def load_agent_specs(
         MissingAgentSpec: If agent specification is not found or invalid
     """
     agent_store = AgentStore()
-    agent = agent_store.load(session_id=conversation_id)
+    agent = agent_store.load_or_create(
+        session_id=conversation_id,
+        env_overrides_enabled=env_overrides_enabled,
+        critic_disabled=critic_disabled,
+    )
     if not agent:
         raise MissingAgentSpec(
             "Agent specification not found. Please configure your settings."

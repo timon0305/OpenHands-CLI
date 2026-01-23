@@ -73,7 +73,7 @@ class SettingsScreen(ModalScreen):
         """
         super().__init__(**kwargs)
         self.agent_store = AgentStore()
-        self.current_agent = self.agent_store.load()
+        self.current_agent = self.agent_store.load_from_disk()
         self.is_advanced_mode = False
         self.message_widget = None
         self.is_initial_setup = SettingsScreen.is_initial_setup_required()
@@ -439,10 +439,12 @@ class SettingsScreen(ModalScreen):
                 but required environment variables (LLM_API_KEY, LLM_MODEL) are
                 missing.
 
-        Note: AgentStore.load() handles creating an agent from environment
+        Note: AgentStore.load_or_create() handles creating an agent from environment
         variables when env_overrides_enabled is True and required env vars
         (LLM_API_KEY and LLM_MODEL) are set.
         """
         agent_store = AgentStore()
-        existing_agent = agent_store.load(env_overrides_enabled=env_overrides_enabled)
+        existing_agent = agent_store.load_or_create(
+            env_overrides_enabled=env_overrides_enabled
+        )
         return existing_agent is None

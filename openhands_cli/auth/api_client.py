@@ -197,8 +197,8 @@ def create_and_save_agent_configuration(
     """
     store = AgentStore()
 
-    # First, check if existing configuration exists
-    existing_agent = store.load()
+    # First, check if existing configuration exists on disk
+    existing_agent = store.load_from_disk()
     if existing_agent is not None:
         # Ask for user consent
         if not _ask_user_consent_for_overwrite(
