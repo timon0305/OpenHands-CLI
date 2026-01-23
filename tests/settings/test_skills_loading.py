@@ -68,7 +68,7 @@ class TestSkillsLoading:
         agent_store.save(test_agent)
 
         # Load agent - this should include skills from project directories
-        loaded_agent = agent_store.load()
+        loaded_agent = agent_store.load_or_create()
 
         assert loaded_agent is not None
         assert loaded_agent.agent_context is not None
