@@ -545,7 +545,7 @@ class TestMissingEnvVarsErrorHandling:
     """Tests for MissingEnvironmentVariablesError handling in entrypoint."""
 
     def test_missing_env_vars_error_prints_message_and_exits(self, capsys) -> None:
-        """When MissingEnvironmentVariablesError is raised, entrypoint should print error and exit."""
+        """Test that MissingEnvironmentVariablesError prints message and exits."""
         from openhands_cli.stores import MissingEnvironmentVariablesError
 
         # Mock textual_main to raise MissingEnvironmentVariablesError
@@ -553,7 +553,13 @@ class TestMissingEnvVarsErrorHandling:
         def raise_missing_env_vars(*args, **kwargs):
             raise MissingEnvironmentVariablesError(["LLM_API_KEY", "LLM_MODEL"])
 
-        test_args = ["openhands", "--headless", "--override-with-envs", "--task", "test"]
+        test_args = [
+            "openhands",
+            "--headless",
+            "--override-with-envs",
+            "--task",
+            "test",
+        ]
 
         with (
             patch.object(sys, "argv", test_args),

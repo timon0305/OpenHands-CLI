@@ -465,6 +465,10 @@ class AgentStore:
         if missing_vars:
             raise MissingEnvironmentVariablesError(missing_vars)
 
+        # At this point, api_key and model are guaranteed to be non-None
+        assert env_overrides.api_key is not None
+        assert env_overrides.model is not None
+
         api_key = env_overrides.api_key.get_secret_value()
         model = env_overrides.model
         base_url = env_overrides.base_url or DEFAULT_LLM_BASE_URL
