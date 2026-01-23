@@ -167,9 +167,28 @@ class TestAuthenticate:
 
     @pytest.mark.asyncio
     async def test_authenticate_returns_response(self, test_agent):
-        """Test authenticate returns an AuthenticateResponse."""
-        response = await test_agent.authenticate(method_id="any-method")
-        assert response is not None
+        """Test authenticate returns an AuthenticateResponse with oauth method."""
+        with patch(
+            "openhands_cli.auth.login_command.login_command", new_callable=AsyncMock
+        ) as mock_login:
+            mock_login.return_value = True
+
+            response = await test_agent.authenticate(method_id="oauth")
+            assert response is not None
+            mock_login.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_authenticate_unsupported_method(self, test_agent):
+        """Test authenticate raises error for unsupported method."""
+        from acp import RequestError
+
+        with pytest.raises(RequestError) as exc_info:
+            await test_agent.authenticate(method_id="unsupported-method")
+
+        assert exc_info.value.data is not None
+        assert "Unsupported authentication method" in exc_info.value.data.get(
+            "reason", ""
+        )
 
 
 class TestNewSession:

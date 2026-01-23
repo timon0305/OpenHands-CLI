@@ -2,13 +2,11 @@
 
 import asyncio
 import logging
-import os
 from pathlib import Path
 from typing import Any
 from uuid import UUID
 
 from acp import Client, NewSessionResponse, RequestError
-from acp.schema import AuthenticateResponse
 
 from openhands.sdk import (
     BaseConversation,
@@ -32,9 +30,6 @@ from openhands_cli.setup import MissingAgentSpec, load_agent_specs
 
 
 logger = logging.getLogger(__name__)
-
-# Default OpenHands Cloud URL for authentication
-DEFAULT_CLOUD_URL = os.getenv("OPENHANDS_CLOUD_URL", "https://app.all-hands.dev")
 
 
 class LocalOpenHandsACPAgent(BaseOpenHandsACPAgent):
@@ -79,40 +74,6 @@ class LocalOpenHandsACPAgent(BaseOpenHandsACPAgent):
             return True
         except MissingAgentSpec:
             return False
-
-    async def authenticate(
-        self, method_id: str, **_kwargs: Any
-    ) -> AuthenticateResponse | None:
-        """Authenticate the client using OAuth2 device flow.
-
-        For local agent, authentication means configuring the agent settings
-        via OpenHands Cloud OAuth flow.
-        """
-        logger.info(f"Authentication requested with method: {method_id}")
-
-        if method_id != "oauth":
-            raise RequestError.invalid_params(
-                {"reason": f"Unsupported authentication method: {method_id}"}
-            )
-
-        from openhands_cli.auth.device_flow import DeviceFlowError
-        from openhands_cli.auth.login_command import login_command
-
-        try:
-            await login_command(DEFAULT_CLOUD_URL, skip_settings_sync=False)
-            logger.info("OAuth authentication completed successfully")
-            return AuthenticateResponse()
-
-        except DeviceFlowError as e:
-            logger.error(f"OAuth authentication failed: {e}")
-            raise RequestError.internal_error(
-                {"reason": f"Authentication failed: {e}"}
-            ) from e
-        except Exception as e:
-            logger.error(f"Unexpected error during authentication: {e}", exc_info=True)
-            raise RequestError.internal_error(
-                {"reason": f"Authentication error: {e}"}
-            ) from e
 
     def _cleanup_session(self, session_id: str) -> None:
         """Clean up resources for a session (no-op for local agent)."""

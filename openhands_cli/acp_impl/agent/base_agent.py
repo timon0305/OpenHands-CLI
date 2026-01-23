@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import uuid
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
@@ -67,6 +68,9 @@ from openhands_cli.utils import extract_text_from_message_content
 
 
 logger = logging.getLogger(__name__)
+
+# Default OpenHands Cloud URL for authentication
+DEFAULT_CLOUD_URL = os.getenv("OPENHANDS_CLOUD_URL", "https://app.all-hands.dev")
 
 
 class BaseOpenHandsACPAgent(ACPAgent, ABC):
@@ -269,13 +273,72 @@ class BaseOpenHandsACPAgent(ACPAgent, ABC):
             ),
         )
 
+    @property
+    def _cloud_api_url(self) -> str:
+        """Return the cloud API URL for authentication.
+
+        Subclasses can override this to provide a custom URL.
+        """
+        return DEFAULT_CLOUD_URL
+
+    @property
+    def _skip_settings_sync(self) -> bool:
+        """Whether to skip settings sync during authentication.
+
+        Local agent should sync settings (False), remote agent should skip (True).
+        """
+        return self.agent_type == "remote"
+
+    def _on_authentication_success(self) -> None:
+        """Hook called after successful authentication.
+
+        Subclasses can override this to perform post-authentication actions,
+        such as refreshing API keys.
+        """
+        pass
+
     async def authenticate(
         self, method_id: str, **_kwargs: Any
     ) -> AuthenticateResponse | None:
-        # TODO: implement authentication in local convo mode as well?
-        """Authenticate the client (no-op by default, override for cloud)."""
+        """Authenticate the client using OAuth2 device flow.
+
+        Args:
+            method_id: The authentication method ID (must be "oauth")
+
+        Returns:
+            AuthenticateResponse on success
+
+        Raises:
+            RequestError: If authentication fails or method is unsupported
+        """
         logger.info(f"Authentication requested with method: {method_id}")
-        return AuthenticateResponse()
+
+        if method_id != "oauth":
+            raise RequestError.invalid_params(
+                {"reason": f"Unsupported authentication method: {method_id}"}
+            )
+
+        from openhands_cli.auth.device_flow import DeviceFlowError
+        from openhands_cli.auth.login_command import login_command
+
+        try:
+            await login_command(
+                self._cloud_api_url, skip_settings_sync=self._skip_settings_sync
+            )
+            self._on_authentication_success()
+            logger.info("OAuth authentication completed successfully")
+            return AuthenticateResponse()
+
+        except DeviceFlowError as e:
+            logger.error(f"OAuth authentication failed: {e}")
+            raise RequestError.internal_error(
+                {"reason": f"Authentication failed: {e}"}
+            ) from e
+        except Exception as e:
+            logger.error(f"Unexpected error during authentication: {e}", exc_info=True)
+            raise RequestError.internal_error(
+                {"reason": f"Authentication error: {e}"}
+            ) from e
 
     async def list_sessions(
         self,

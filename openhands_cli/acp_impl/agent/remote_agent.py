@@ -6,7 +6,7 @@ from typing import Any
 from uuid import UUID
 
 from acp import Client, NewSessionResponse, PromptResponse, RequestError
-from acp.schema import AuthenticateResponse, LoadSessionResponse
+from acp.schema import LoadSessionResponse
 
 from openhands.sdk import BaseConversation, Conversation, Event, RemoteConversation
 from openhands.workspace import OpenHandsCloudWorkspace
@@ -56,7 +56,7 @@ class OpenHandsCloudACPAgent(BaseOpenHandsACPAgent):
 
         self.store = TokenStorage()
         self._cloud_api_key = self.store.get_api_key()
-        self._cloud_api_url = cloud_api_url
+        self._cloud_api_url_config = cloud_api_url
 
         self._active_workspaces: dict[str, OpenHandsCloudWorkspace] = {}
 
@@ -94,36 +94,14 @@ class OpenHandsCloudACPAgent(BaseOpenHandsACPAgent):
             except Exception as e:
                 logger.warning(f"Error closing conversation for {session_id}: {e}")
 
-    async def authenticate(
-        self, method_id: str, **_kwargs: Any
-    ) -> AuthenticateResponse | None:
-        """Authenticate the client using OAuth2 device flow."""
-        logger.info(f"Authentication requested with method: {method_id}")
+    @property
+    def _cloud_api_url(self) -> str:
+        """Return the cloud API URL for authentication."""
+        return self._cloud_api_url_config
 
-        if method_id != "oauth":
-            raise RequestError.invalid_params(
-                {"reason": f"Unsupported authentication method: {method_id}"}
-            )
-
-        from openhands_cli.auth.device_flow import DeviceFlowError
-        from openhands_cli.auth.login_command import login_command
-
-        try:
-            await login_command(self._cloud_api_url, skip_settings_sync=True)
-            self._cloud_api_key = self.store.get_api_key()
-            logger.info("OAuth authentication completed successfully")
-            return AuthenticateResponse()
-
-        except DeviceFlowError as e:
-            logger.error(f"OAuth authentication failed: {e}")
-            raise RequestError.internal_error(
-                {"reason": f"Authentication failed: {e}"}
-            ) from e
-        except Exception as e:
-            logger.error(f"Unexpected error during authentication: {e}", exc_info=True)
-            raise RequestError.internal_error(
-                {"reason": f"Authentication error: {e}"}
-            ) from e
+    def _on_authentication_success(self) -> None:
+        """Refresh the API key after successful authentication."""
+        self._cloud_api_key = self.store.get_api_key()
 
     async def _verify_and_get_sandbox_id(self, conversation_id: str) -> str:
         """Verify a conversation exists and get its sandbox_id."""
