@@ -461,6 +461,8 @@ class OpenHandsApp(CollapsibleNavigationMixin, App):
             conversation_visualizer,
             self.initial_confirmation_policy,
             event_callback,
+            env_overrides_enabled=self.env_overrides_enabled,
+            critic_disabled=self.critic_disabled,
         )
 
         return runner
