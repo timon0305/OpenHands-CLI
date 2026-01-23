@@ -539,3 +539,60 @@ class TestJsonModeIntegration:
         # Should not raise an exception
         with patch("builtins.print"):
             json_callback(mock_event)
+
+
+class TestMissingEnvVarsErrorHandling:
+    """Tests for MissingEnvironmentVariablesError handling in headless mode."""
+
+    def test_missing_env_vars_error_prints_message_and_exits(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """When MissingEnvironmentVariablesError is raised, should print error and exit."""
+        from openhands_cli.stores import MissingEnvironmentVariablesError
+
+        # Make is_initial_setup_required raise MissingEnvironmentVariablesError
+        def raise_missing_env_vars():
+            raise MissingEnvironmentVariablesError(["LLM_API_KEY", "LLM_MODEL"])
+
+        monkeypatch.setattr(
+            SettingsScreen,
+            "is_initial_setup_required",
+            raise_missing_env_vars,
+        )
+
+        app = OpenHandsApp(
+            exit_confirmation=False,
+            headless_mode=True,
+            resume_conversation_id=uuid.uuid4(),
+        )
+
+        # Avoid Textual's "node must be running" restriction in this unit test
+        monkeypatch.setattr(
+            app.conversation_running_signal,
+            "subscribe",
+            MagicMock(),
+        )
+
+        # We don't want to actually exit the process in the test
+        app.exit = MagicMock()
+        # Ensure the interactive path is not taken
+        app._show_initial_settings = MagicMock()
+
+        with patch("rich.console.Console") as mock_console_cls:
+            mock_console = MagicMock()
+            mock_console_cls.return_value = mock_console
+
+            app.on_mount()
+
+            # Should exit immediately
+            app.exit.assert_called_once()
+            # Should NOT try to open the interactive settings screen
+            app._show_initial_settings.assert_not_called()
+
+            # We should have printed a message that mentions the missing env vars
+            printed_any_hint = any(
+                "LLM_API_KEY" in str(arg) or "LLM_MODEL" in str(arg)
+                for call in mock_console.print.call_args_list
+                for arg in call.args
+            )
+            assert printed_any_hint

@@ -12,6 +12,7 @@ from openhands_cli.stores.agent_store import (
     ENV_LLM_BASE_URL,
     ENV_LLM_MODEL,
     LLMEnvOverrides,
+    MissingEnvironmentVariablesError,
     apply_llm_overrides,
     check_and_warn_env_vars,
     get_critic_disabled,
@@ -532,10 +533,10 @@ class TestAgentCreationFromEnvVars:
             assert agent.llm.base_url == "https://test.example.com/"
             assert agent.llm.model == "test-model"
 
-    def test_agent_created_with_default_model_when_not_set(self, tmp_path) -> None:
-        """Agent should use default model when LLM_MODEL env var is not set."""
+    def test_agent_raises_error_when_model_not_set(self, tmp_path) -> None:
+        """Agent creation should raise error when LLM_MODEL env var is not set."""
         import openhands_cli.stores.agent_store as agent_store_module
-        from openhands_cli.stores import AgentStore
+        from openhands_cli.stores import AgentStore, MissingEnvironmentVariablesError
 
         conversations_dir = tmp_path / "conversations"
         conversations_dir.mkdir(exist_ok=True)
@@ -559,18 +560,52 @@ class TestAgentCreationFromEnvVars:
             os.environ.pop(ENV_LLM_BASE_URL, None)
 
             store = AgentStore()
-            agent = store.load()
 
-            assert agent is not None
-            # Should use default model
-            assert agent.llm.model == "claude-sonnet-4-5-20250929"
-            # Should use default base URL
-            assert agent.llm.base_url == "https://llm-proxy.app.all-hands.dev/"
+            with pytest.raises(MissingEnvironmentVariablesError) as exc_info:
+                store.load()
 
-    def test_agent_returns_none_when_api_key_not_set(self, tmp_path) -> None:
-        """Agent creation should return None when LLM_API_KEY is not set."""
+            assert ENV_LLM_MODEL in exc_info.value.missing_vars
+            assert ENV_LLM_API_KEY not in exc_info.value.missing_vars
+
+    def test_agent_raises_error_when_api_key_not_set(self, tmp_path) -> None:
+        """Agent creation should raise error when LLM_API_KEY is not set."""
         import openhands_cli.stores.agent_store as agent_store_module
-        from openhands_cli.stores import AgentStore
+        from openhands_cli.stores import AgentStore, MissingEnvironmentVariablesError
+
+        conversations_dir = tmp_path / "conversations"
+        conversations_dir.mkdir(exist_ok=True)
+
+        set_env_overrides_enabled(True)
+
+        # Set model but not API key
+        env_vars = {
+            ENV_LLM_MODEL: "test-model",
+        }
+
+        with (
+            patch.object(agent_store_module, "PERSISTENCE_DIR", str(tmp_path)),
+            patch.object(
+                agent_store_module, "CONVERSATIONS_DIR", str(conversations_dir)
+            ),
+            patch.dict(os.environ, env_vars, clear=False),
+        ):
+            # Ensure LLM_API_KEY is not set
+            os.environ.pop(ENV_LLM_API_KEY, None)
+
+            store = AgentStore()
+
+            with pytest.raises(MissingEnvironmentVariablesError) as exc_info:
+                store.load()
+
+            assert ENV_LLM_API_KEY in exc_info.value.missing_vars
+            assert ENV_LLM_MODEL not in exc_info.value.missing_vars
+
+    def test_agent_raises_error_when_both_api_key_and_model_not_set(
+        self, tmp_path
+    ) -> None:
+        """Agent creation should raise error listing both missing vars."""
+        import openhands_cli.stores.agent_store as agent_store_module
+        from openhands_cli.stores import AgentStore, MissingEnvironmentVariablesError
 
         conversations_dir = tmp_path / "conversations"
         conversations_dir.mkdir(exist_ok=True)
@@ -583,14 +618,17 @@ class TestAgentCreationFromEnvVars:
                 agent_store_module, "CONVERSATIONS_DIR", str(conversations_dir)
             ),
         ):
-            # Ensure LLM_API_KEY is not set
+            # Ensure both env vars are not set
             os.environ.pop(ENV_LLM_API_KEY, None)
+            os.environ.pop(ENV_LLM_MODEL, None)
 
             store = AgentStore()
-            agent = store.load()
 
-            # Should return None since no API key
-            assert agent is None
+            with pytest.raises(MissingEnvironmentVariablesError) as exc_info:
+                store.load()
+
+            assert ENV_LLM_API_KEY in exc_info.value.missing_vars
+            assert ENV_LLM_MODEL in exc_info.value.missing_vars
 
     def test_agent_returns_none_when_env_overrides_disabled(self, tmp_path) -> None:
         """Agent creation should return None when env overrides are disabled."""
@@ -688,3 +726,40 @@ class TestCriticBehaviorInAgentCreation:
             assert agent is not None
             # Critic should be enabled (not None) when flag is False
             assert agent.critic is not None
+
+
+class TestMissingEnvironmentVariablesError:
+    """Tests for MissingEnvironmentVariablesError exception."""
+
+    def test_error_message_contains_missing_vars(self) -> None:
+        """Error message should list the missing variables."""
+        error = MissingEnvironmentVariablesError([ENV_LLM_API_KEY, ENV_LLM_MODEL])
+        error_str = str(error)
+
+        assert ENV_LLM_API_KEY in error_str
+        assert ENV_LLM_MODEL in error_str
+        assert "Missing required environment variable(s)" in error_str
+
+    def test_error_message_contains_instructions(self) -> None:
+        """Error message should contain instructions for setting env vars."""
+        error = MissingEnvironmentVariablesError([ENV_LLM_API_KEY])
+        error_str = str(error)
+
+        assert "--override-with-envs" in error_str
+        assert "LLM_API_KEY" in error_str
+        assert "LLM_MODEL" in error_str
+
+    def test_missing_vars_attribute(self) -> None:
+        """Error should have missing_vars attribute."""
+        missing = [ENV_LLM_API_KEY, ENV_LLM_MODEL]
+        error = MissingEnvironmentVariablesError(missing)
+
+        assert error.missing_vars == missing
+
+    def test_single_missing_var(self) -> None:
+        """Error should work with a single missing variable."""
+        error = MissingEnvironmentVariablesError([ENV_LLM_MODEL])
+        error_str = str(error)
+
+        assert ENV_LLM_MODEL in error_str
+        assert "Missing required environment variable(s)" in error_str

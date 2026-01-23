@@ -430,9 +430,14 @@ class SettingsScreen(ModalScreen):
             True if initial setup is needed (no existing settings and no valid
             env overrides), False otherwise.
 
-        Note: AgentStore.load() now handles creating an agent from environment
-        variables when --override-with-envs is enabled and LLM_API_KEY is set,
-        so this method simply checks if load() returns a valid agent.
+        Raises:
+            MissingEnvironmentVariablesError: If --override-with-envs is enabled
+                but required environment variables (LLM_API_KEY, LLM_MODEL) are
+                missing.
+
+        Note: AgentStore.load() handles creating an agent from environment
+        variables when --override-with-envs is enabled and required env vars
+        (LLM_API_KEY and LLM_MODEL) are set.
         """
         agent_store = AgentStore()
         existing_agent = agent_store.load()

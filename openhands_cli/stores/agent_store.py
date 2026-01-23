@@ -126,6 +126,25 @@ ENV_LLM_API_KEY = "LLM_API_KEY"
 ENV_LLM_BASE_URL = "LLM_BASE_URL"
 ENV_LLM_MODEL = "LLM_MODEL"
 
+
+class MissingEnvironmentVariablesError(Exception):
+    """Raised when required environment variables are missing for headless mode.
+
+    This exception is raised when --override-with-envs is enabled but required
+    environment variables (LLM_API_KEY and LLM_MODEL) are not set.
+    """
+
+    def __init__(self, missing_vars: list[str]) -> None:
+        self.missing_vars = missing_vars
+        vars_str = ", ".join(missing_vars)
+        super().__init__(
+            f"Missing required environment variable(s): {vars_str}\n"
+            f"When using --override-with-envs, you must set:\n"
+            f"  - {ENV_LLM_API_KEY}: Your LLM API key\n"
+            f"  - {ENV_LLM_MODEL}: The model to use (e.g., claude-sonnet-4-5-20250929)"
+        )
+
+
 # Global flag to control whether env overrides are applied
 _apply_env_overrides: bool = False
 
@@ -420,23 +439,35 @@ class AgentStore:
         """Create an Agent from environment variables when no settings file exists.
 
         This is used when --override-with-envs flag is enabled and LLM_API_KEY
-        is set, allowing headless mode to work without pre-configured settings.
+        and LLM_MODEL are set, allowing headless mode to work without
+        pre-configured settings.
 
         Returns:
-            Agent instance if env overrides are enabled and LLM_API_KEY is set,
-            None otherwise.
+            Agent instance if env overrides are enabled and required env vars are set,
+            None if env overrides are not enabled.
+
+        Raises:
+            MissingEnvironmentVariablesError: If env overrides are enabled but
+                required environment variables (LLM_API_KEY, LLM_MODEL) are missing.
         """
         if not get_env_overrides_enabled():
             return None
 
         env_overrides = LLMEnvOverrides()
-        if env_overrides.api_key is None:
-            return None
 
-        # Use env override values with defaults for missing values
+        # Check for required environment variables
+        missing_vars = []
+        if env_overrides.api_key is None:
+            missing_vars.append(ENV_LLM_API_KEY)
+        if env_overrides.model is None:
+            missing_vars.append(ENV_LLM_MODEL)
+
+        if missing_vars:
+            raise MissingEnvironmentVariablesError(missing_vars)
+
         api_key = env_overrides.api_key.get_secret_value()
+        model = env_overrides.model
         base_url = env_overrides.base_url or DEFAULT_LLM_BASE_URL
-        model = env_overrides.model or "claude-sonnet-4-5-20250929"
 
         llm = LLM(
             model=model,
