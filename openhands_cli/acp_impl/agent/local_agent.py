@@ -2,11 +2,13 @@
 
 import asyncio
 import logging
+import os
 from pathlib import Path
 from typing import Any
 from uuid import UUID
 
 from acp import Client, NewSessionResponse, RequestError
+from acp.schema import AuthenticateResponse
 
 from openhands.sdk import (
     BaseConversation,
@@ -26,10 +28,13 @@ from openhands_cli.acp_impl.slash_commands import (
 from openhands_cli.acp_impl.utils import RESOURCE_SKILL
 from openhands_cli.locations import CONVERSATIONS_DIR, MCP_CONFIG_FILE, WORK_DIR
 from openhands_cli.mcp.mcp_utils import MCPConfigurationError
-from openhands_cli.setup import load_agent_specs
+from openhands_cli.setup import MissingAgentSpec, load_agent_specs
 
 
 logger = logging.getLogger(__name__)
+
+# Default OpenHands Cloud URL for authentication
+DEFAULT_CLOUD_URL = os.getenv("OPENHANDS_CLOUD_URL", "https://app.all-hands.dev")
 
 
 class LocalOpenHandsACPAgent(BaseOpenHandsACPAgent):
@@ -64,8 +69,50 @@ class LocalOpenHandsACPAgent(BaseOpenHandsACPAgent):
         return "local"
 
     async def _is_authenticated(self) -> bool:
-        """Local agent doesn't require authentication."""
-        return True
+        """Check if agent settings are configured.
+
+        For local agent, 'authenticated' means the agent settings are configured.
+        This includes having a valid LLM configuration.
+        """
+        try:
+            load_agent_specs()
+            return True
+        except MissingAgentSpec:
+            return False
+
+    async def authenticate(
+        self, method_id: str, **_kwargs: Any
+    ) -> AuthenticateResponse | None:
+        """Authenticate the client using OAuth2 device flow.
+
+        For local agent, authentication means configuring the agent settings
+        via OpenHands Cloud OAuth flow.
+        """
+        logger.info(f"Authentication requested with method: {method_id}")
+
+        if method_id != "oauth":
+            raise RequestError.invalid_params(
+                {"reason": f"Unsupported authentication method: {method_id}"}
+            )
+
+        from openhands_cli.auth.device_flow import DeviceFlowError
+        from openhands_cli.auth.login_command import login_command
+
+        try:
+            await login_command(DEFAULT_CLOUD_URL, skip_settings_sync=False)
+            logger.info("OAuth authentication completed successfully")
+            return AuthenticateResponse()
+
+        except DeviceFlowError as e:
+            logger.error(f"OAuth authentication failed: {e}")
+            raise RequestError.internal_error(
+                {"reason": f"Authentication failed: {e}"}
+            ) from e
+        except Exception as e:
+            logger.error(f"Unexpected error during authentication: {e}", exc_info=True)
+            raise RequestError.internal_error(
+                {"reason": f"Authentication error: {e}"}
+            ) from e
 
     def _cleanup_session(self, session_id: str) -> None:
         """Clean up resources for a session (no-op for local agent)."""
@@ -186,6 +233,20 @@ class LocalOpenHandsACPAgent(BaseOpenHandsACPAgent):
         **_kwargs: Any,
     ) -> NewSessionResponse:
         """Create a new conversation session."""
+        # Check if agent settings are configured
+        is_authenticated = await self._is_authenticated()
+        if not is_authenticated:
+            logger.info("Agent settings not configured, requiring authentication")
+            raise RequestError.auth_required(
+                {
+                    "reason": "Agent settings not configured",
+                    "help": (
+                        "Please authenticate to configure your agent settings. "
+                        "Run 'openhands login' or authenticate via the ACP client."
+                    ),
+                }
+            )
+
         effective_working_dir = working_dir or cwd or str(Path.cwd())
         logger.info(f"Using working directory: {effective_working_dir}")
 

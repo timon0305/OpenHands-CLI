@@ -139,7 +139,10 @@ class TestAuthorizationCodeFlowClient:
         assert "https://test.openhands.ai/oauth/authorize" in url
         assert "response_type=code" in url
         assert "client_id=test-client" in url
-        assert f"redirect_uri={redirect_uri.replace(':', '%3A').replace('/', '%2F')}" in url
+        assert (
+            f"redirect_uri={redirect_uri.replace(':', '%3A').replace('/', '%2F')}"
+            in url
+        )
         assert f"state={state}" in url
         assert f"code_challenge={pkce.code_challenge}" in url
         assert "code_challenge_method=S256" in url

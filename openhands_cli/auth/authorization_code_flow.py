@@ -462,16 +462,14 @@ class AuthorizationCodeFlowClient(BaseHttpClient):
             # Wait for callback with timeout
             try:
                 await asyncio.wait_for(received_event.wait(), timeout=timeout)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 raise AuthorizationCodeFlowError(
                     "Timeout waiting for user authorization. Please try again."
                 )
 
             # Check for errors
             if CallbackHandler.error:
-                error_msg = (
-                    CallbackHandler.error_description or CallbackHandler.error
-                )
+                error_msg = CallbackHandler.error_description or CallbackHandler.error
                 raise AuthorizationCodeFlowError(f"Authorization failed: {error_msg}")
 
             # Verify state parameter

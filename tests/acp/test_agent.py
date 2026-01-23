@@ -71,10 +71,28 @@ async def test_initialize_without_configured_agent(acp_agent):
 
 @pytest.mark.asyncio
 async def test_authenticate(acp_agent):
-    """Test authentication."""
-    response = await acp_agent.authenticate(method_id="test-method")
+    """Test authentication with oauth method."""
+    with patch(
+        "openhands_cli.auth.login_command.login_command", new_callable=AsyncMock
+    ) as mock_login:
+        mock_login.return_value = True
 
-    assert response is not None
+        response = await acp_agent.authenticate(method_id="oauth")
+
+        assert response is not None
+        mock_login.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_authenticate_unsupported_method(acp_agent):
+    """Test authentication with unsupported method raises error."""
+    from acp import RequestError
+
+    with pytest.raises(RequestError) as exc_info:
+        await acp_agent.authenticate(method_id="unsupported-method")
+
+    assert exc_info.value.data is not None
+    assert "Unsupported authentication method" in exc_info.value.data.get("reason", "")
 
 
 @pytest.mark.asyncio
@@ -134,13 +152,20 @@ async def test_new_session_with_malformed_mcp_json(acp_agent, tmp_path, monkeypa
 
     request = NewSessionRequest(cwd=str(tmp_path), mcp_servers=[])
 
-    # Mock load_agent_specs to raise MCPConfigurationError
+    # Mock load_agent_specs: first call for auth check succeeds,
+    # second call for session setup raises MCPConfigurationError
+    mock_agent = MagicMock()
+    mock_agent.llm.model = "test-model"
+
     with patch(
         "openhands_cli.acp_impl.agent.local_agent.load_agent_specs"
     ) as mock_load:
-        mock_load.side_effect = MCPConfigurationError(
-            "Invalid JSON: trailing characters at line 20 column 1"
-        )
+        mock_load.side_effect = [
+            mock_agent,  # First call: auth check succeeds
+            MCPConfigurationError(
+                "Invalid JSON: trailing characters at line 20 column 1"
+            ),  # Second call: session setup fails
+        ]
 
         # Should raise RequestError with helpful message
         with pytest.raises(RequestError) as exc_info:
@@ -167,13 +192,20 @@ async def test_new_session_with_malformed_mcp_json_integration(
 
     request = NewSessionRequest(cwd=str(tmp_path), mcp_servers=[])
 
-    # Mock load_agent_specs to propagate the MCPConfigurationError
+    # Mock load_agent_specs: first call for auth check succeeds,
+    # second call for session setup raises MCPConfigurationError
+    mock_agent = MagicMock()
+    mock_agent.llm.model = "test-model"
+
     with patch(
         "openhands_cli.acp_impl.agent.local_agent.load_agent_specs"
     ) as mock_load_specs:
-        mock_load_specs.side_effect = MCPConfigurationError(
-            "Invalid JSON: trailing characters at line 20 column 1"
-        )
+        mock_load_specs.side_effect = [
+            mock_agent,  # First call: auth check succeeds
+            MCPConfigurationError(
+                "Invalid JSON: trailing characters at line 20 column 1"
+            ),  # Second call: session setup fails
+        ]
 
         # RequestError raised when creating session with malformed mcp.json
         with pytest.raises(RequestError) as exc_info:
@@ -541,9 +573,13 @@ async def test_new_session_with_mcp_servers(acp_agent, tmp_path):
         # Verify session was created
         assert response.session_id is not None
 
-        # Verify load_agent_specs was called with transformed MCP servers dict
-        mock_load.assert_called_once()
-        call_kwargs = mock_load.call_args[1]
+        # Verify load_agent_specs was called twice:
+        # 1. First call for auth check (no args)
+        # 2. Second call for session setup (with mcp_servers)
+        assert mock_load.call_count == 2
+
+        # Check the second call (session setup) has the transformed MCP servers
+        call_kwargs = mock_load.call_args_list[1][1]
         assert "mcp_servers" in call_kwargs
         mcp_servers_dict = call_kwargs["mcp_servers"]
 
