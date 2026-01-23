@@ -305,6 +305,24 @@ class AgentStore:
             )
             return None
 
+        # Apply runtime configuration (tools, context, MCP, condenser, critic)
+        return self._apply_runtime_config(agent, session_id)
+
+    def _apply_runtime_config(
+        self, agent: Agent, session_id: str | None = None
+    ) -> Agent:
+        """Apply runtime configuration to an agent.
+
+        This includes tools, agent context, MCP servers, env var overrides,
+        condenser updates, and critic configuration.
+
+        Args:
+            agent: The base agent to configure
+            session_id: Optional session ID for metadata tracking
+
+        Returns:
+            Agent with runtime configuration applied
+        """
         # Determine which tools to use:
         # - If resuming a conversation, use the tools from the persisted state
         # - If creating a new conversation, use the default CLI tools
@@ -385,7 +403,7 @@ class AgentStore:
             )
 
         # Update tools and context
-        agent = agent.model_copy(
+        return agent.model_copy(
             update={
                 "llm": updated_llm,
                 "tools": updated_tools,
@@ -397,8 +415,6 @@ class AgentStore:
                 "critic": critic,
             }
         )
-
-        return agent
 
     def _create_agent_from_env_overrides(self) -> Agent | None:
         """Create an Agent from environment variables when no settings file exists.
