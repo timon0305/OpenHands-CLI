@@ -208,6 +208,16 @@ def main() -> None:
                 # Either showed conversation list or had an error
                 return
 
+            # Pre-check for missing environment variables before starting the app
+            # This ensures the error is displayed cleanly without the app's traceback
+            from openhands_cli.stores import AgentStore
+
+            try:
+                agent_store = AgentStore()
+                agent_store.load()
+            except MissingEnvironmentVariablesError:
+                raise  # Re-raise to be caught by the outer handler
+
             # Use textual-based UI as default
             from openhands_cli.tui.textual_app import main as textual_main
 
