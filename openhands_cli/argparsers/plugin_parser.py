@@ -32,23 +32,32 @@ You can manage plugin marketplaces (registries) to discover and install plugins.
 
 Examples:
 
-  # Add a plugin marketplace
-  openhands plugin marketplace add https://plugins.openhands.ai/index.json
+  # Add a plugin marketplace using GitHub shorthand
+  openhands plugin marketplace add company/plugins
 
-  # Add a marketplace with a friendly name
-  openhands plugin marketplace add https://plugins.openhands.ai/index.json --name "Official"
+  # Add with explicit GitHub prefix
+  openhands plugin marketplace add github:openhands/community-plugins
+
+  # Add a Git repository
+  openhands plugin marketplace add https://gitlab.com/org/plugins.git
+
+  # Add a direct URL to marketplace index
+  openhands plugin marketplace add https://plugins.example.com/marketplace.json
+
+  # Add with a custom name
+  openhands plugin marketplace add company/plugins --name my-plugins
 
   # List configured marketplaces
   openhands plugin marketplace list
 
-  # Remove a marketplace
-  openhands plugin marketplace remove https://plugins.openhands.ai/index.json
+  # Remove a marketplace by name
+  openhands plugin marketplace remove company-plugins
 
-  # Update marketplace indexes
+  # Update all marketplace indexes
   openhands plugin marketplace update
 
   # Update a specific marketplace
-  openhands plugin marketplace update https://plugins.openhands.ai/index.json
+  openhands plugin marketplace update company-plugins
 """
     plugin_parser = subparsers.add_parser(
         "plugin",
@@ -83,25 +92,31 @@ def _add_marketplace_parser(
     marketplace_description = """
 Manage plugin marketplaces (registries).
 
-Marketplaces are URLs that provide an index of available plugins.
-Configure marketplaces to discover and install plugins.
+Marketplaces provide an index of available plugins. Supported source formats:
+  - GitHub shorthand: owner/repo
+  - Explicit GitHub: github:owner/repo
+  - Git URL: https://gitlab.com/org/plugins.git
+  - Direct URL: https://example.com/marketplace.json
 
 Examples:
 
-  # Add a marketplace
-  openhands plugin marketplace add https://plugins.openhands.ai/index.json
+  # Add a marketplace using GitHub shorthand
+  openhands plugin marketplace add company/plugins
 
-  # Add with a name
-  openhands plugin marketplace add https://plugins.openhands.ai/index.json --name "Official"
+  # Add with a custom name
+  openhands plugin marketplace add company/plugins --name my-plugins
 
   # List all marketplaces
   openhands plugin marketplace list
 
-  # Remove a marketplace
-  openhands plugin marketplace remove https://plugins.openhands.ai/index.json
+  # Remove a marketplace by name
+  openhands plugin marketplace remove company-plugins
 
   # Update all marketplace indexes
   openhands plugin marketplace update
+
+  # Update a specific marketplace
+  openhands plugin marketplace update company-plugins
 """
     marketplace_parser = plugin_subparsers.add_parser(
         "marketplace",
@@ -120,13 +135,25 @@ Examples:
     add_description = """
 Add a new plugin marketplace.
 
+Supported source formats:
+  - GitHub shorthand: owner/repo
+  - Explicit GitHub: github:owner/repo
+  - Git URL: https://gitlab.com/org/plugins.git
+  - Direct URL: https://example.com/marketplace.json
+
 Examples:
 
-  # Add a marketplace
-  openhands plugin marketplace add https://plugins.openhands.ai/index.json
+  # Add using GitHub shorthand
+  openhands plugin marketplace add company/plugins
 
-  # Add with a friendly name
-  openhands plugin marketplace add https://plugins.openhands.ai/index.json --name "Official"
+  # Add with explicit GitHub prefix
+  openhands plugin marketplace add github:openhands/community-plugins
+
+  # Add a Git repository
+  openhands plugin marketplace add https://gitlab.com/org/plugins.git
+
+  # Add with a custom name
+  openhands plugin marketplace add company/plugins --name my-plugins
 """
     add_parser = marketplace_subparsers.add_parser(
         "add",
@@ -135,13 +162,13 @@ Examples:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     add_parser.add_argument(
-        "url",
-        help="URL of the marketplace index (e.g., https://plugins.example.com/index.json)",
+        "source",
+        help="Marketplace source (GitHub: owner/repo, Git URL, or direct URL)",
     )
     add_parser.add_argument(
         "--name",
         "-n",
-        help="Friendly name for the marketplace",
+        help="Custom name for the marketplace (auto-generated if not provided)",
     )
 
     # marketplace remove command
@@ -150,8 +177,8 @@ Remove a plugin marketplace.
 
 Examples:
 
-  # Remove a marketplace by URL
-  openhands plugin marketplace remove https://plugins.openhands.ai/index.json
+  # Remove a marketplace by name
+  openhands plugin marketplace remove company-plugins
 """
     remove_parser = marketplace_subparsers.add_parser(
         "remove",
@@ -160,13 +187,16 @@ Examples:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     remove_parser.add_argument(
-        "url",
-        help="URL of the marketplace to remove",
+        "name",
+        help="Name of the marketplace to remove",
     )
 
     # marketplace list command
     list_description = """
 List all configured plugin marketplaces.
+
+Displays configured marketplaces with their source, auto-update setting,
+and timestamps.
 
 Examples:
 
@@ -192,7 +222,7 @@ Examples:
   openhands plugin marketplace update
 
   # Update a specific marketplace
-  openhands plugin marketplace update https://plugins.openhands.ai/index.json
+  openhands plugin marketplace update company-plugins
 """
     update_parser = marketplace_subparsers.add_parser(
         "update",
@@ -201,9 +231,9 @@ Examples:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     update_parser.add_argument(
-        "url",
+        "name",
         nargs="?",
-        help="URL of specific marketplace to update (optional, updates all if not specified)",
+        help="Name of specific marketplace to update (optional, updates all if not specified)",
     )
 
     return marketplace_parser
