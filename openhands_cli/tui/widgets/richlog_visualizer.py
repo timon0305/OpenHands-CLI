@@ -598,13 +598,40 @@ class ConversationVisualizer(ConversationVisualizerBase):
             border_color=border_color,
         )
 
+    def _create_system_prompt_collapsible(
+        self, event: SystemPromptEvent
+    ) -> Collapsible:
+        """Create a collapsible widget showing the system prompt from SystemPromptEvent.
+
+        This displays the full system prompt content in a collapsible widget,
+        matching ACP's display format. The title shows the number of tools loaded.
+
+        Args:
+            event: The SystemPromptEvent containing tools and system prompt
+
+        Returns:
+            A Collapsible widget showing the system prompt
+        """
+        # Build the collapsible content - show system prompt like ACP does
+        content = str(event.visualize.plain)
+
+        # Get tool count for title
+        tool_count = len(event.tools) if event.tools else 0
+        title = (
+            f"Loaded: {tool_count} tool{'s' if tool_count != 1 else ''}, system prompt"
+        )
+
+        return self._make_collapsible(content, title, event)
+
     def _create_event_widget(self, event: Event) -> "Widget | None":
         """Create a widget for the event - either plain text or collapsible."""
         content = event.visualize
 
-        # Don't emit system prompt in CLI
+        # Handle SystemPromptEvent - create a collapsible showing the system prompt
+        # Note: Loaded resources (skills, hooks, tools, MCPs) are displayed at startup
+        # in _initialize_main_ui(). This collapsible shows the full system prompt.
         if isinstance(event, SystemPromptEvent):
-            return None
+            return self._create_system_prompt_collapsible(event)
         # Don't emit condensation request events (internal events)
         elif isinstance(event, CondensationRequest):
             return None
@@ -689,11 +716,8 @@ class ConversationVisualizer(ConversationVisualizerBase):
 
         agent_prefix = self._get_agent_prefix()
 
-        # Don't emit system prompt in CLI
-        if isinstance(event, SystemPromptEvent):
-            return None
         # Don't emit condensation request events (internal events)
-        elif isinstance(event, CondensationRequest):
+        if isinstance(event, CondensationRequest):
             return None
         elif isinstance(event, ActionEvent):
             # Build title using new format with agent prefix
