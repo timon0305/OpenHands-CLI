@@ -925,7 +925,7 @@ class TestOpenHandsAppCommands:
         self,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """`/agents` should call show_agents and display agent information."""
+        """`/agents` should display agent information in the scroll view."""
         monkeypatch.setattr(
             SettingsScreen,
             "is_initial_setup_required",
@@ -937,12 +937,31 @@ class TestOpenHandsAppCommands:
         async with app.run_test() as pilot:
             oh_app = cast(OpenHandsApp, pilot.app)
 
-            with mock.patch(
-                "openhands_cli.tui.widgets.input_area.show_agents"
-            ) as mock_show:
-                oh_app.conversation_state.input_area._command_agents()
+            # Get the scroll view before calling the command
+            scroll_view = oh_app.conversation_state.input_area.scroll_view
+            initial_widget_count = len(scroll_view.children)
 
-                mock_show.assert_called_once()
-                # First arg is scroll_view, second is runner
-                call_args = mock_show.call_args
-                assert call_args[0][0] is oh_app.conversation_state.input_area.scroll_view
+            # Call the actual command (no mocking)
+            oh_app.conversation_state.input_area._command_agents()
+
+            # Verify a new widget was mounted
+            assert len(scroll_view.children) > initial_widget_count
+
+            # Find the agents message widget
+            agents_widgets = [
+                w for w in scroll_view.children if "agents-message" in w.classes
+            ]
+            assert len(agents_widgets) == 1
+
+            # Verify the widget was properly mounted
+            from textual.widgets import Static
+
+            agents_widget = agents_widgets[0]
+            assert isinstance(agents_widget, Static)
+
+            # The important thing is that the real code path executed:
+            # - show_agents() was called
+            # - It accessed the agent registry
+            # - It created and mounted a widget
+            # - The widget has the correct CSS class
+            # If show_agents() crashes, this test will fail
