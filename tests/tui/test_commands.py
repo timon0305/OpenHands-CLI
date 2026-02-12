@@ -261,13 +261,21 @@ class TestShowAgents:
         assert "No active sub-agents" in content
 
     def test_show_agents_with_active_sub_agents(self):
-        """show_agents with active sub-agents should list them."""
+        """show_agents with active sub-agents should list them.
+
+        Note: _sub_agents is dict[str, LocalConversation] in reality, but since
+        _get_active_sub_agents() only calls .keys(), we just need a dict with
+        the right keys. This test verifies the display logic, not the conversation
+        objects themselves.
+        """
         mock_scroll = mock.MagicMock(spec=VerticalScroll)
 
+        # Real structure: dict[str, LocalConversation]
+        # We only need dict keys for this test since _get_active_sub_agents() calls .keys()
         mock_executor = mock.MagicMock()
         mock_executor._sub_agents = {
-            "researcher": mock.MagicMock(),
-            "security_expert": mock.MagicMock(),
+            "researcher_1": None,  # Explicit None since we don't use the values
+            "security_expert_1": None,
         }
 
         mock_delegate_tool = mock.MagicMock()
@@ -281,8 +289,8 @@ class TestShowAgents:
         widget = mock_scroll.mount.call_args[0][0]
         content = widget.content
 
-        assert "researcher" in content
-        assert "security_expert" in content
+        assert "researcher_1" in content
+        assert "security_expert_1" in content
 
     def test_show_agents_mounts_with_correct_css_class(self):
         """show_agents should mount widget with agents-message CSS class."""
