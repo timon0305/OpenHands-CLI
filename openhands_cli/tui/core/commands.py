@@ -151,9 +151,8 @@ def show_agents(
     lines.append(f"\n[bold {secondary}]Active Sub-Agents[/bold {secondary}]")
     active_agents = _get_active_sub_agents(runner)
     if active_agents:
-        for agent_id, agent_type in active_agents:
-            type_label = f" [{secondary}]({agent_type})[/{secondary}]" if agent_type else ""
-            lines.append(f"  - {agent_id}{type_label}")
+        for agent_id in active_agents:
+            lines.append(f"  - {agent_id}")
     else:
         lines.append("  [dim]No active sub-agents in this session.[/dim]")
 
@@ -164,11 +163,11 @@ def show_agents(
 
 def _get_active_sub_agents(
     runner: ConversationRunner | None,
-) -> list[tuple[str, str]]:
+) -> list[str]:
     """Get active sub-agents from the conversation runner's delegate executor.
 
     Returns:
-        List of (agent_id, agent_type) tuples, or empty list if unavailable.
+        List of agent IDs, or empty list if unavailable.
     """
     if runner is None or runner.conversation is None:
         return []
@@ -184,9 +183,6 @@ def _get_active_sub_agents(
         if not sub_agents:
             return []
 
-        results = []
-        for agent_id in sub_agents:
-            results.append((agent_id, ""))
-        return results
+        return list(sub_agents.keys())
     except Exception:
         return []
