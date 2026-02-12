@@ -129,7 +129,8 @@ def show_agents(
         scroll_view: The VerticalScroll widget to mount content to
         runner: The current conversation runner (for active sub-agent info)
     """
-    from openhands.tools.delegate.registration import get_factory_info
+    # Access registry directly to avoid fragile string parsing
+    from openhands.tools.delegate.registration import _agent_factories, _registry_lock
 
     primary = OPENHANDS_THEME.primary
     secondary = OPENHANDS_THEME.secondary
@@ -138,14 +139,17 @@ def show_agents(
 
     # Section 1: Available agent types from the global registry
     lines.append(f"\n[bold {secondary}]Available Agent Types[/bold {secondary}]")
-    factory_info = get_factory_info()
-    for info_line in factory_info.splitlines():
-        # Convert markdown bold to Rich markup
-        info_line = info_line.replace("**", "")
-        if info_line.startswith("- "):
-            lines.append(f"  {info_line}")
-        elif not info_line.startswith("Available agent"):
-            lines.append(info_line)
+
+    # Always show default agent
+    lines.append(f"  - [bold]default[/bold]: Default general-purpose agent")
+
+    # Show user-registered agents
+    with _registry_lock:
+        user_factories = dict(_agent_factories)
+
+    if user_factories:
+        for name, factory in sorted(user_factories.items()):
+            lines.append(f"  - [bold]{name}[/bold]: {factory.description}")
 
     # Section 2: Active sub-agents from the current conversation
     lines.append(f"\n[bold {secondary}]Active Sub-Agents[/bold {secondary}]")
